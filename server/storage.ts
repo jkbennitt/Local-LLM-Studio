@@ -157,6 +157,7 @@ export class MemStorage implements IStorage {
     const newTemplate: ModelTemplate = { 
       ...template, 
       id,
+      isActive: template.isActive ?? true,
       createdAt: new Date()
     };
     this.modelTemplates.set(id, newTemplate);
@@ -178,6 +179,15 @@ export class MemStorage implements IStorage {
     const newJob: TrainingJob = { 
       ...job, 
       id,
+      userId: job.userId ?? null,
+      templateId: job.templateId ?? null,
+      progress: job.progress ?? 0,
+      currentEpoch: job.currentEpoch ?? 0,
+      totalEpochs: job.totalEpochs ?? 3,
+      trainingLoss: job.trainingLoss ?? null,
+      datasetPath: job.datasetPath ?? null,
+      modelPath: job.modelPath ?? null,
+      error: job.error ?? null,
       createdAt: new Date(),
       updatedAt: new Date()
     };
@@ -209,6 +219,9 @@ export class MemStorage implements IStorage {
     const newDataset: Dataset = { 
       ...dataset, 
       id,
+      userId: dataset.userId ?? null,
+      sampleCount: dataset.sampleCount ?? null,
+      preprocessed: dataset.preprocessed ?? false,
       createdAt: new Date()
     };
     this.datasets.set(id, newDataset);
@@ -239,6 +252,11 @@ export class MemStorage implements IStorage {
     const newModel: TrainedModel = { 
       ...model, 
       id,
+      userId: model.userId ?? null,
+      jobId: model.jobId ?? null,
+      performance: model.performance ?? null,
+      deployed: model.deployed ?? false,
+      apiEndpoint: model.apiEndpoint ?? null,
       createdAt: new Date()
     };
     this.trainedModels.set(id, newModel);
