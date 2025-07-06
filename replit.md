@@ -248,4 +248,10 @@ Changelog:
 
 ```
 Preferred communication style: Simple, everyday language.
+Dashboard design preference: Keep system dashboard simple and educational with tooltips.
+- Add tooltips to explain technical terms in beginner-friendly language
+- Use simple language and emojis to make technical concepts accessible
+- Focus on "vibe code generation" ease of use - make training models as simple as possible
+- Avoid overly technical displays that might overwhelm non-technical users
+- Prioritize educational hand-holding like the main page over complex monitoring
 ```

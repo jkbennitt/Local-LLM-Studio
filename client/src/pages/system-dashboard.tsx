@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { 
   Activity, 
   Cpu, 
@@ -21,7 +22,9 @@ import {
   Network,
   Clock,
   Gauge,
-  ArrowLeft
+  ArrowLeft,
+  HelpCircle,
+  Info
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useLocation } from 'wouter';
@@ -282,116 +285,256 @@ export default function SystemDashboard() {
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">System Dashboard</h1>
-          <p className="text-muted-foreground">Comprehensive monitoring and control center</p>
+    <TooltipProvider>
+      <div className="container mx-auto p-6 space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="flex items-center space-x-3">
+              <h1 className="text-3xl font-bold tracking-tight">System Health</h1>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <HelpCircle className="w-5 h-5 text-muted-foreground hover:text-foreground cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <div className="max-w-sm">
+                    <p className="font-medium mb-2">What is this page?</p>
+                    <p>This shows how well your AI training system is running:</p>
+                    <ul className="mt-2 space-y-1 text-sm">
+                      <li>• 🟢 <strong>Green</strong> = Everything working perfectly!</li>
+                      <li>• 🟡 <strong>Yellow</strong> = Minor issues, but still working</li>
+                      <li>• 🔴 <strong>Red</strong> = Problems that need your attention</li>
+                    </ul>
+                  </div>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+            <p className="text-muted-foreground">Check if your AI training system is ready to train models</p>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setLocation('/')}
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Training
+            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setAutoRefresh(!autoRefresh)}
+                >
+                  <RefreshCw className={`w-4 h-4 mr-2 ${autoRefresh ? 'animate-spin' : ''}`} />
+                  {autoRefresh ? 'Auto-refresh ON' : 'Auto-refresh OFF'}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>When ON, this page updates every 10 seconds automatically<br/>
+                to show you the latest system status</p>
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" size="sm" onClick={optimizeResources}>
+                  <Settings className="w-4 h-4 mr-2" />
+                  Optimize
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Automatically adjust system settings to work better<br/>
+                with your computer's available resources</p>
+              </TooltipContent>
+            </Tooltip>
+          </div>
         </div>
-        <div className="flex items-center space-x-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setLocation('/')}
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Main Page
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setAutoRefresh(!autoRefresh)}
-          >
-            <RefreshCw className={`w-4 h-4 mr-2 ${autoRefresh ? 'animate-spin' : ''}`} />
-            {autoRefresh ? 'Auto-refresh ON' : 'Auto-refresh OFF'}
-          </Button>
-          <Button variant="outline" size="sm" onClick={optimizeResources}>
-            <Settings className="w-4 h-4 mr-2" />
-            Optimize Resources
-          </Button>
-        </div>
-      </div>
 
       {/* Overall Health Status */}
       {systemHealth && (
-        <Card>
+        <Card className="border-2">
           <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              {getStatusIcon(systemHealth.overall.status)}
-              <span>Overall System Health</span>
-              <Badge variant={systemHealth.overall.status === 'healthy' ? 'default' : 'destructive'}>
-                {systemHealth.overall.status.toUpperCase()}
-              </Badge>
-            </CardTitle>
-            <CardDescription>
-              System uptime: {formatUptime(systemHealth.overall.uptime)} | 
-              Last check: {new Date(systemHealth.overall.timestamp).toLocaleTimeString()}
-            </CardDescription>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                {getStatusIcon(systemHealth.overall.status)}
+                <div>
+                  <CardTitle className="flex items-center space-x-2">
+                    <span>System Status</span>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="w-4 h-4 text-muted-foreground hover:text-foreground cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <div className="max-w-sm">
+                          <p className="font-medium mb-2">What does this mean?</p>
+                          <p><strong>Healthy:</strong> Ready to train AI models!</p>
+                          <p><strong>Degraded:</strong> Minor issues, training may still work</p>
+                          <p><strong>Unhealthy:</strong> Fix problems before training</p>
+                        </div>
+                      </TooltipContent>
+                    </Tooltip>
+                  </CardTitle>
+                  <CardDescription className="text-base">
+                    {systemHealth.overall.status === 'healthy' 
+                      ? "✅ Everything working great! Ready to train models."
+                      : systemHealth.overall.status === 'degraded'
+                      ? "⚠️ Minor issues detected, but training should work."
+                      : "❌ Issues found - please check details below."
+                    }
+                  </CardDescription>
+                </div>
+                <Badge 
+                  variant={systemHealth.overall.status === 'healthy' ? 'default' : 'destructive'}
+                  className="text-lg px-3 py-1"
+                >
+                  {systemHealth.overall.status.toUpperCase()}
+                </Badge>
+              </div>
+              <div className="text-right text-sm text-muted-foreground">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="hover:bg-muted p-1 rounded cursor-help">
+                      Running: {formatUptime(systemHealth.overall.uptime)}
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>How long your system has been running without restart</p>
+                  </TooltipContent>
+                </Tooltip>
+                <div className="text-xs">
+                  Last check: {new Date(systemHealth.overall.timestamp).toLocaleTimeString()}
+                </div>
+              </div>
+            </div>
           </CardHeader>
         </Card>
       )}
 
       <Tabs defaultValue="services" className="w-full">
         <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="services">Services</TabsTrigger>
-          <TabsTrigger value="resources">Resources</TabsTrigger>
-          <TabsTrigger value="jobs">Jobs</TabsTrigger>
-          <TabsTrigger value="websocket">WebSocket</TabsTrigger>
-          <TabsTrigger value="optimizations">Optimizations</TabsTrigger>
+          <TabsTrigger value="services" title="Check if the core AI training services are running properly">
+            🔧 Services
+          </TabsTrigger>
+          <TabsTrigger value="resources" title="See how much CPU, memory, and storage your system is using">
+            💻 Resources
+          </TabsTrigger>
+          <TabsTrigger value="jobs" title="Monitor active training jobs and queue status">
+            ⚡ Jobs
+          </TabsTrigger>
+          <TabsTrigger value="websocket" title="Real-time connection status for live training updates">
+            🔗 Connection
+          </TabsTrigger>
+          <TabsTrigger value="optimizations" title="System optimizations and performance settings">
+            ⚙️ Settings
+          </TabsTrigger>
         </TabsList>
 
         {/* Services Tab */}
         <TabsContent value="services" className="space-y-4">
           {systemHealth && (
             <div className="grid gap-4 md:grid-cols-2">
-              {/* Python Service */}
+              {/* AI Training Engine */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center space-x-2">
                     <Activity className="w-5 h-5" />
-                    <span>Python ML Service</span>
+                    <span>🤖 AI Training Engine</span>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="w-4 h-4 text-muted-foreground hover:text-foreground cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <div className="max-w-sm">
+                          <p className="font-medium mb-2">What is this?</p>
+                          <p>This is the core system that actually trains your AI models. 
+                          When you start training, this service does all the heavy work!</p>
+                        </div>
+                      </TooltipContent>
+                    </Tooltip>
                     {getStatusIcon(systemHealth.services?.pythonService?.status || 'unknown')}
                   </CardTitle>
+                  <CardDescription>
+                    {systemHealth.services?.pythonService?.status === 'healthy' 
+                      ? "Ready to train your AI models"
+                      : "Having issues - may need restart"
+                    }
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <span className="text-muted-foreground">Uptime:</span>
-                      <p className="font-medium">{formatUptime(systemHealth.services?.pythonService?.uptime || 0)}</p>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Restarts:</span>
-                      <p className="font-medium">{systemHealth.services?.pythonService?.restartCount || 0}</p>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Memory:</span>
-                      <p className="font-medium">{formatBytes(systemHealth.services?.pythonService?.memoryUsage || 0)}</p>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">CPU Usage:</span>
-                      <p className="font-medium">{(systemHealth.services?.pythonService?.cpuUsage || 0).toFixed(1)}%</p>
-                    </div>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="hover:bg-muted p-2 rounded cursor-help">
+                          <span className="text-muted-foreground">Running for:</span>
+                          <p className="font-medium">{formatUptime(systemHealth.services?.pythonService?.uptime || 0)}</p>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>How long the AI training engine has been running<br/>without needing a restart</p>
+                      </TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="hover:bg-muted p-2 rounded cursor-help">
+                          <span className="text-muted-foreground">Restarts:</span>
+                          <p className="font-medium">{systemHealth.services?.pythonService?.restartCount || 0}</p>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>How many times the service has restarted<br/>Lower numbers are better</p>
+                      </TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="hover:bg-muted p-2 rounded cursor-help">
+                          <span className="text-muted-foreground">Memory used:</span>
+                          <p className="font-medium">{formatBytes(systemHealth.services?.pythonService?.memoryUsage || 0)}</p>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>How much RAM the training engine is currently using<br/>More memory = can train larger models</p>
+                      </TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="hover:bg-muted p-2 rounded cursor-help">
+                          <span className="text-muted-foreground">CPU usage:</span>
+                          <p className="font-medium">{(systemHealth.services?.pythonService?.cpuUsage || 0).toFixed(1)}%</p>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>How much processing power is being used<br/>Higher during training is normal</p>
+                      </TooltipContent>
+                    </Tooltip>
                   </div>
 
                   {systemHealth.services?.pythonService?.lastError && (
                     <Alert>
                       <AlertTriangle className="h-4 w-4" />
                       <AlertDescription>
-                        Last error: {systemHealth.services.pythonService.lastError}
+                        <strong>Issue found:</strong> {systemHealth.services.pythonService.lastError}
                       </AlertDescription>
                     </Alert>
                   )}
 
-                  <Button
-                    onClick={restartPythonService}
-                    variant="outline"
-                    size="sm"
-                    className="w-full"
-                  >
-                    <RefreshCw className="w-4 h-4 mr-2" />
-                    Restart Service
-                  </Button>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        onClick={restartPythonService}
+                        variant="outline"
+                        size="sm"
+                        className="w-full"
+                      >
+                        <RefreshCw className="w-4 h-4 mr-2" />
+                        Restart Training Engine
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>If you're having issues, this restarts the AI training engine<br/>
+                      This will stop any active training!</p>
+                    </TooltipContent>
+                  </Tooltip>
                 </CardContent>
               </Card>
 
@@ -667,6 +810,7 @@ export default function SystemDashboard() {
           )}
         </TabsContent>
       </Tabs>
-    </div>
+      </div>
+    </TooltipProvider>
   );
 }
