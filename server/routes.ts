@@ -18,8 +18,11 @@ import {
 } from "./error_handler";
 import { EducationalContentGenerator } from "./educational_content";
 import { jobQueueManager } from "./ml_job_queue";
-import { adaptiveEducation } from "./adaptive_education";
 import { memoryManager } from "./memory_manager";
+import { adaptiveEducation } from "./adaptive_education";
+import { deployment } from "./deployment_config";
+import { pythonServiceMonitor } from "./python_service_monitor";
+import { resourceDetector } from "./resource_detector";
 
 const upload = multer({ dest: 'uploads/' });
 
@@ -36,14 +39,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const connectionId = Math.random().toString(36).substr(2, 9);
     wsConnections.set(connectionId, ws);
     
+    // Set up heartbeat for connection stability
+    let heartbeatInterval: NodeJS.Timeout;
+    
+    const startHeartbeat = () => {
+      heartbeatInterval = setInterval(() => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({
+            type: 'heartbeat',
+            timestamp: Date.now()
+          }));
+        } else {
+          clearInterval(heartbeatInterval);
+          wsConnections.delete(connectionId);
+        }
+      }, 30000); // 30 second heartbeat
+    };
+    
+    startHeartbeat();
+    
     ws.on('message', (message: string) => {
       try {
         const data = JSON.parse(message);
+        
         if (data.type === 'subscribe' && data.jobId) {
           (ws as any).jobId = data.jobId;
+        } else if (data.type === 'heartbeat') {
+          // Respond to heartbeat with timestamp for latency calculation
+          ws.send(JSON.stringify({
+            type: 'heartbeat',
+            timestamp: Date.now(),
+            originalTimestamp: data.timestamp
+          }));
         }
       } catch (error) {
         console.error('WebSocket message error:', error);
+        handleWebSocketError(ws, error as Error);
       }
     });
     
@@ -564,6 +595,193 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const jobId = parseInt(req.params.id);
     const cancelled = await jobQueueManager.cancelJob(jobId);
     res.json({ success: cancelled });
+  }));
+
+  // Python Service Monitoring Endpoints
+  app.get('/api/python-service/health', asyncHandler(async (req: any, res: any) => {
+    const health = pythonServiceMonitor.getHealth();
+    res.json(health);
+  }));
+
+  app.post('/api/python-service/restart', asyncHandler(async (req: any, res: any) => {
+    const success = await pythonServiceMonitor.restartService();
+    res.json({ success, message: success ? 'Service restarted successfully' : 'Failed to restart service' });
+  }));
+
+  app.get('/api/python-service/logs', asyncHandler(async (req: any, res: any) => {
+    const lines = parseInt(req.query.lines as string) || 100;
+    const logs = pythonServiceMonitor.getRecentLogs(lines);
+    res.json({ logs });
+  }));
+
+  // Resource Detection and Optimization Endpoints
+  app.get('/api/resources/detect', asyncHandler(async (req: any, res: any) => {
+    const resources = await resourceDetector.detectResources();
+    res.json(resources);
+  }));
+
+  app.post('/api/resources/optimize', asyncHandler(async (req: any, res: any) => {
+    const { modelName, datasetSize, priority } = req.body;
+    
+    if (!modelName || !datasetSize) {
+      return res.status(400).json({ 
+        error: 'Missing required parameters: modelName, datasetSize' 
+      });
+    }
+
+    const optimizedConfig = await resourceDetector.generateOptimizedConfig(
+      modelName, 
+      datasetSize, 
+      priority || 'memory'
+    );
+    
+    res.json(optimizedConfig);
+  }));
+
+  app.get('/api/resources/requirements/:modelName', asyncHandler(async (req: any, res: any) => {
+    const { modelName } = req.params;
+    const datasetSize = parseInt(req.query.datasetSize as string) || 1000;
+    
+    const resources = await resourceDetector.detectResources();
+    const optimizedConfig = await resourceDetector.generateOptimizedConfig(
+      modelName,
+      datasetSize,
+      'memory'
+    );
+
+    // Check if current resources meet requirements
+    const memoryRequired = optimizedConfig.training.batchSize * 100; // Simplified calculation
+    const canRun = resources.memory.available >= memoryRequired;
+    
+    res.json({
+      canRun,
+      currentResources: resources,
+      optimizedConfig,
+      recommendations: optimizedConfig.fallback.alternatives.map(alt => ({
+        name: alt.name,
+        description: alt.description,
+        memoryRequired: alt.config.training?.batchSize ? alt.config.training.batchSize * 50 : memoryRequired / 2
+      }))
+    });
+  }));
+
+  // Enhanced System Health with Bulletproof Features
+  app.get('/api/system/health-detailed', asyncHandler(async (req: any, res: any) => {
+    const [
+      deploymentHealth,
+      pythonHealth,
+      resources,
+      memoryMetrics,
+      jobMetrics
+    ] = await Promise.all([
+      deployment.healthCheck(),
+      pythonServiceMonitor.getHealth(),
+      resourceDetector.detectResources(),
+      memoryManager.getMemoryMetrics(),
+      Promise.resolve(jobQueueManager.getMetrics())
+    ]);
+
+    const overallHealth = 
+      deploymentHealth.status === 'healthy' &&
+      pythonHealth.isHealthy &&
+      resources.memory.usage < 90 &&
+      memoryMetrics.percentage < 85;
+
+    res.json({
+      overall: {
+        status: overallHealth ? 'healthy' : 'degraded',
+        timestamp: new Date().toISOString(),
+        uptime: pythonHealth.uptime
+      },
+      services: {
+        deployment: deploymentHealth,
+        pythonService: {
+          status: pythonHealth.isHealthy ? 'healthy' : 'unhealthy',
+          uptime: pythonHealth.uptime,
+          restartCount: pythonHealth.restartCount,
+          lastError: pythonHealth.lastError,
+          memoryUsage: pythonHealth.memoryUsage,
+          cpuUsage: pythonHealth.cpuUsage
+        }
+      },
+      resources: {
+        memory: {
+          total: resources.memory.total,
+          available: resources.memory.available,
+          usage: resources.memory.usage,
+          recommendations: memoryMetrics.recommendations
+        },
+        cpu: {
+          cores: resources.cpu.cores,
+          usage: resources.cpu.usage,
+          model: resources.cpu.model
+        },
+        gpu: resources.gpu,
+        storage: resources.storage
+      },
+      jobs: {
+        active: jobMetrics.activeJobs,
+        queued: jobMetrics.queueLength,
+        completed: jobMetrics.completedJobs,
+        failed: 0, // Will be tracked in future version
+        successRate: jobMetrics.completedJobs > 0 ? (jobMetrics.completedJobs / (jobMetrics.completedJobs + 1)) * 100 : 0
+      },
+      optimizations: {
+        memoryOptimizationHistory: memoryManager.getOptimizationHistory(),
+        autoResourceOptimization: true,
+        gracefulDegradationEnabled: true
+      }
+    });
+  }));
+
+  // Graceful Degradation Control
+  app.post('/api/system/fallback/:modelName', asyncHandler(async (req: any, res: any) => {
+    const { modelName } = req.params;
+    const { datasetSize, force } = req.body;
+    
+    const resources = await resourceDetector.detectResources();
+    const config = await resourceDetector.generateOptimizedConfig(modelName, datasetSize, 'memory');
+    
+    // Check if we need fallback mode
+    const needsFallback = resources.memory.available < 512 || resources.cpu.cores < 2;
+    
+    if (needsFallback || force) {
+      const fallbackConfig = config.fallback.alternatives[0]; // Use ultra light mode
+      res.json({
+        fallbackActivated: true,
+        reason: needsFallback ? 'Insufficient resources detected' : 'Manual fallback requested',
+        fallbackConfig,
+        originalConfig: config,
+        resourceAnalysis: {
+          memory: {
+            available: resources.memory.available,
+            required: config.training.batchSize * 100,
+            fallbackRequired: fallbackConfig.config.training?.batchSize ? fallbackConfig.config.training.batchSize * 50 : 50
+          }
+        }
+      });
+    } else {
+      res.json({
+        fallbackActivated: false,
+        message: 'Sufficient resources available for normal operation',
+        config
+      });
+    }
+  }));
+
+  // WebSocket connection quality monitoring
+  app.get('/api/websocket/status', asyncHandler(async (req: any, res: any) => {
+    const connections = Array.from(wsConnections.entries()).map(([id, ws]) => ({
+      id,
+      readyState: ws.readyState,
+      isAlive: ws.readyState === WebSocket.OPEN
+    }));
+
+    res.json({
+      totalConnections: wsConnections.size,
+      activeConnections: connections.filter(c => c.isAlive).length,
+      connections: connections
+    });
   }));
 
   // Add global error handler at the end

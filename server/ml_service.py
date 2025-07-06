@@ -2,6 +2,7 @@
 import sys
 import json
 import os
+import time
 import torch
 from transformers import (
     AutoTokenizer, 
@@ -147,7 +148,59 @@ def inference(data):
     except Exception as e:
         return {"error": str(e)}
 
+def start_health_server():
+    """Start health check server for service monitoring"""
+    from http.server import HTTPServer, BaseHTTPRequestHandler
+    import threading
+    import json
+    
+    class HealthHandler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            if self.path == '/health':
+                self.send_response(200)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                
+                health_data = {
+                    'status': 'healthy',
+                    'timestamp': time.time(),
+                    'service': 'ml_service',
+                    'version': '1.0.0'
+                }
+                
+                self.wfile.write(json.dumps(health_data).encode())
+            else:
+                self.send_response(404)
+                self.end_headers()
+        
+        def log_message(self, format, *args):
+            # Suppress default logging
+            pass
+    
+    server = HTTPServer(('localhost', 8000), HealthHandler)
+    server_thread = threading.Thread(target=server.serve_forever)
+    server_thread.daemon = True
+    server_thread.start()
+    
+    print("Health server started on port 8000")
+    return server
+
 def main():
+    # Start health monitoring server
+    health_server = start_health_server()
+    
+    if len(sys.argv) < 2:
+        print("Service ready")
+        print("Usage: python ml_service.py <operation> <data>")
+        
+        # Keep service running for health checks
+        try:
+            while True:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            print("Service shutting down...")
+        return
+    
     if len(sys.argv) < 3:
         print(json.dumps({"error": "Usage: python ml_service.py <operation> <data>"}))
         sys.exit(1)

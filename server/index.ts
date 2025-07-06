@@ -37,6 +37,23 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Start bulletproof Python service monitor
+  try {
+    const { pythonServiceMonitor } = await import('./python_service_monitor');
+    log('🐍 Starting Python ML service monitor...');
+    const serviceStarted = await pythonServiceMonitor.startService();
+    if (serviceStarted) {
+      log('✅ Python ML service started successfully with health monitoring');
+    } else {
+      log('⚠️  Python ML service failed to start, continuing without ML capabilities');
+    }
+  } catch (error) {
+    log('⚠️  Python service monitor not available');
+    if (error instanceof Error) {
+      log('Error details:', error.message);
+    }
+  }
+
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
