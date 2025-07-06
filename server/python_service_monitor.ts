@@ -48,8 +48,8 @@ export class PythonServiceMonitor extends EventEmitter {
       restartDelay: 5000,
       healthCheckInterval: 30000,
       healthCheckTimeout: 10000,
-      maxMemoryUsage: 512, // MB
-      maxCpuUsage: 80, // %
+      maxMemoryUsage: 1024, // MB - increased for ML libraries
+      maxCpuUsage: 90, // % - more lenient
       ...config
     };
 
