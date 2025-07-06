@@ -248,10 +248,11 @@ Changelog:
 
 ```
 Preferred communication style: Simple, everyday language.
-Dashboard design preference: Keep system dashboard simple and educational with tooltips.
-- Add tooltips to explain technical terms in beginner-friendly language
-- Use simple language and emojis to make technical concepts accessible
-- Focus on "vibe code generation" ease of use - make training models as simple as possible
-- Avoid overly technical displays that might overwhelm non-technical users
-- Prioritize educational hand-holding like the main page over complex monitoring
+UI/UX Design Requirements: Professional, polished interface following attached_assets/FRONTEND_UI_PROMPT_1751789752894.md
+- NEVER use emojis in the interface - they make it look "amateur as fuck" 
+- Follow the detailed UI specification with proper gradients, color schemes, and professional typography
+- Dashboard should match the same design patterns as the main interface (educational header cards, proper status badges, etc.)
+- Focus on "vibe code generation" ease of use - make training models simple without looking unprofessional
+- Comprehensive educational tooltips and help systems, but with polished design
+- Professional status indicators and clean visual hierarchy
 ```

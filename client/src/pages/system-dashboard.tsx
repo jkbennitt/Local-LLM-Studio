@@ -414,19 +414,19 @@ export default function SystemDashboard() {
       <Tabs defaultValue="services" className="w-full">
         <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="services" title="Check if the core AI training services are running properly">
-            🔧 Services
+            Services
           </TabsTrigger>
           <TabsTrigger value="resources" title="See how much CPU, memory, and storage your system is using">
-            💻 Resources
+            Resources
           </TabsTrigger>
           <TabsTrigger value="jobs" title="Monitor active training jobs and queue status">
-            ⚡ Jobs
+            Jobs
           </TabsTrigger>
           <TabsTrigger value="websocket" title="Real-time connection status for live training updates">
-            🔗 Connection
+            Connection
           </TabsTrigger>
           <TabsTrigger value="optimizations" title="System optimizations and performance settings">
-            ⚙️ Settings
+            Settings
           </TabsTrigger>
         </TabsList>
 
