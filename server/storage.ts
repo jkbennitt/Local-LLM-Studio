@@ -1,0 +1,258 @@
+import { 
+  users, 
+  modelTemplates, 
+  trainingJobs, 
+  datasets, 
+  trainedModels,
+  type User, 
+  type InsertUser,
+  type ModelTemplate,
+  type InsertModelTemplate,
+  type TrainingJob,
+  type InsertTrainingJob,
+  type Dataset,
+  type InsertDataset,
+  type TrainedModel,
+  type InsertTrainedModel
+} from "@shared/schema";
+
+export interface IStorage {
+  // Users
+  getUser(id: number): Promise<User | undefined>;
+  getUserByUsername(username: string): Promise<User | undefined>;
+  createUser(user: InsertUser): Promise<User>;
+  
+  // Model Templates
+  getModelTemplates(): Promise<ModelTemplate[]>;
+  getModelTemplate(id: number): Promise<ModelTemplate | undefined>;
+  createModelTemplate(template: InsertModelTemplate): Promise<ModelTemplate>;
+  
+  // Training Jobs
+  getTrainingJobs(userId?: number): Promise<TrainingJob[]>;
+  getTrainingJob(id: number): Promise<TrainingJob | undefined>;
+  createTrainingJob(job: InsertTrainingJob): Promise<TrainingJob>;
+  updateTrainingJob(id: number, updates: Partial<TrainingJob>): Promise<TrainingJob>;
+  
+  // Datasets
+  getDatasets(userId?: number): Promise<Dataset[]>;
+  getDataset(id: number): Promise<Dataset | undefined>;
+  createDataset(dataset: InsertDataset): Promise<Dataset>;
+  updateDataset(id: number, updates: Partial<Dataset>): Promise<Dataset>;
+  
+  // Trained Models
+  getTrainedModels(userId?: number): Promise<TrainedModel[]>;
+  getTrainedModel(id: number): Promise<TrainedModel | undefined>;
+  createTrainedModel(model: InsertTrainedModel): Promise<TrainedModel>;
+  updateTrainedModel(id: number, updates: Partial<TrainedModel>): Promise<TrainedModel>;
+}
+
+export class MemStorage implements IStorage {
+  private users: Map<number, User> = new Map();
+  private modelTemplates: Map<number, ModelTemplate> = new Map();
+  private trainingJobs: Map<number, TrainingJob> = new Map();
+  private datasets: Map<number, Dataset> = new Map();
+  private trainedModels: Map<number, TrainedModel> = new Map();
+  
+  private currentUserId = 1;
+  private currentTemplateId = 1;
+  private currentJobId = 1;
+  private currentDatasetId = 1;
+  private currentModelId = 1;
+
+  constructor() {
+    this.initializeDefaultTemplates();
+  }
+
+  private initializeDefaultTemplates() {
+    // Customer Service Bot Template
+    this.modelTemplates.set(1, {
+      id: 1,
+      name: "Customer Service Bot",
+      description: "Perfect for handling customer inquiries, support tickets, and FAQ responses with empathy and accuracy.",
+      modelType: "gpt2-small",
+      useCase: "customer_service",
+      config: {
+        model_name: "gpt2",
+        learning_rate: 5e-5,
+        batch_size: 8,
+        max_epochs: 5,
+        temperature: 0.7,
+        max_length: 256,
+        expected_accuracy: "85-92%"
+      },
+      isActive: true,
+      createdAt: new Date()
+    });
+
+    // Creative Writing Assistant Template
+    this.modelTemplates.set(2, {
+      id: 2,
+      name: "Creative Writing Assistant",
+      description: "Generate stories, poems, articles, and creative content with style and originality based on your examples.",
+      modelType: "gpt2-small",
+      useCase: "creative_writing",
+      config: {
+        model_name: "gpt2",
+        learning_rate: 3e-5,
+        batch_size: 6,
+        max_epochs: 4,
+        temperature: 0.9,
+        max_length: 512,
+        expected_accuracy: "High"
+      },
+      isActive: true,
+      createdAt: new Date()
+    });
+
+    // Code Assistant Template
+    this.modelTemplates.set(3, {
+      id: 3,
+      name: "Code Assistant",
+      description: "Generate code snippets, documentation, and programming solutions tailored to your specific coding style and patterns.",
+      modelType: "distilbert",
+      useCase: "code_assistant",
+      config: {
+        model_name: "distilbert-base-uncased",
+        learning_rate: 2e-5,
+        batch_size: 16,
+        max_epochs: 3,
+        temperature: 0.5,
+        max_length: 256,
+        expected_accuracy: "90-95%"
+      },
+      isActive: true,
+      createdAt: new Date()
+    });
+
+    this.currentTemplateId = 4;
+  }
+
+  // Users
+  async getUser(id: number): Promise<User | undefined> {
+    return this.users.get(id);
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    return Array.from(this.users.values()).find(user => user.username === username);
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const id = this.currentUserId++;
+    const user: User = { ...insertUser, id };
+    this.users.set(id, user);
+    return user;
+  }
+
+  // Model Templates
+  async getModelTemplates(): Promise<ModelTemplate[]> {
+    return Array.from(this.modelTemplates.values()).filter(t => t.isActive);
+  }
+
+  async getModelTemplate(id: number): Promise<ModelTemplate | undefined> {
+    return this.modelTemplates.get(id);
+  }
+
+  async createModelTemplate(template: InsertModelTemplate): Promise<ModelTemplate> {
+    const id = this.currentTemplateId++;
+    const newTemplate: ModelTemplate = { 
+      ...template, 
+      id,
+      createdAt: new Date()
+    };
+    this.modelTemplates.set(id, newTemplate);
+    return newTemplate;
+  }
+
+  // Training Jobs
+  async getTrainingJobs(userId?: number): Promise<TrainingJob[]> {
+    const jobs = Array.from(this.trainingJobs.values());
+    return userId ? jobs.filter(j => j.userId === userId) : jobs;
+  }
+
+  async getTrainingJob(id: number): Promise<TrainingJob | undefined> {
+    return this.trainingJobs.get(id);
+  }
+
+  async createTrainingJob(job: InsertTrainingJob): Promise<TrainingJob> {
+    const id = this.currentJobId++;
+    const newJob: TrainingJob = { 
+      ...job, 
+      id,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    this.trainingJobs.set(id, newJob);
+    return newJob;
+  }
+
+  async updateTrainingJob(id: number, updates: Partial<TrainingJob>): Promise<TrainingJob> {
+    const job = this.trainingJobs.get(id);
+    if (!job) throw new Error('Training job not found');
+    
+    const updatedJob = { ...job, ...updates, updatedAt: new Date() };
+    this.trainingJobs.set(id, updatedJob);
+    return updatedJob;
+  }
+
+  // Datasets
+  async getDatasets(userId?: number): Promise<Dataset[]> {
+    const datasets = Array.from(this.datasets.values());
+    return userId ? datasets.filter(d => d.userId === userId) : datasets;
+  }
+
+  async getDataset(id: number): Promise<Dataset | undefined> {
+    return this.datasets.get(id);
+  }
+
+  async createDataset(dataset: InsertDataset): Promise<Dataset> {
+    const id = this.currentDatasetId++;
+    const newDataset: Dataset = { 
+      ...dataset, 
+      id,
+      createdAt: new Date()
+    };
+    this.datasets.set(id, newDataset);
+    return newDataset;
+  }
+
+  async updateDataset(id: number, updates: Partial<Dataset>): Promise<Dataset> {
+    const dataset = this.datasets.get(id);
+    if (!dataset) throw new Error('Dataset not found');
+    
+    const updatedDataset = { ...dataset, ...updates };
+    this.datasets.set(id, updatedDataset);
+    return updatedDataset;
+  }
+
+  // Trained Models
+  async getTrainedModels(userId?: number): Promise<TrainedModel[]> {
+    const models = Array.from(this.trainedModels.values());
+    return userId ? models.filter(m => m.userId === userId) : models;
+  }
+
+  async getTrainedModel(id: number): Promise<TrainedModel | undefined> {
+    return this.trainedModels.get(id);
+  }
+
+  async createTrainedModel(model: InsertTrainedModel): Promise<TrainedModel> {
+    const id = this.currentModelId++;
+    const newModel: TrainedModel = { 
+      ...model, 
+      id,
+      createdAt: new Date()
+    };
+    this.trainedModels.set(id, newModel);
+    return newModel;
+  }
+
+  async updateTrainedModel(id: number, updates: Partial<TrainedModel>): Promise<TrainedModel> {
+    const model = this.trainedModels.get(id);
+    if (!model) throw new Error('Trained model not found');
+    
+    const updatedModel = { ...model, ...updates };
+    this.trainedModels.set(id, updatedModel);
+    return updatedModel;
+  }
+}
+
+export const storage = new MemStorage();
