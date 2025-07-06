@@ -57,7 +57,9 @@ export class PythonServiceMonitor extends EventEmitter {
       isHealthy: false,
       lastHealthCheck: new Date(),
       uptime: 0,
-      restartCount: 0
+      restartCount: 0,
+      memoryUsage: 0,
+      cpuUsage: 0
     };
 
     this.logFile = join(process.cwd(), 'python_service.log');
@@ -350,15 +352,27 @@ export class PythonServiceMonitor extends EventEmitter {
     }
 
     try {
-      const { stdout } = await execAsync(`ps -p ${this.process.pid} -o %mem,%cpu --no-headers`);
-      const [memPercent, cpuPercent] = stdout.trim().split(/\s+/).map(parseFloat);
+      // Try to get process resource usage including child processes
+      const { stdout: psOutput } = await execAsync(`ps -p ${this.process.pid} -o pid,ppid,%mem,%cpu,rss --no-headers`);
       
-      // Convert memory percentage to MB (approximate)
-      const totalMemory = await this.getTotalMemory();
-      const memoryUsage = (memPercent / 100) * totalMemory;
+      if (!psOutput.trim()) {
+        console.warn(`Process ${this.process.pid} not found in ps output`);
+        return { memoryUsage: 0, cpuUsage: 0 };
+      }
+      
+      const parts = psOutput.trim().split(/\s+/);
+      const memPercent = parseFloat(parts[2]) || 0;
+      const cpuPercent = parseFloat(parts[3]) || 0;
+      const rssKB = parseInt(parts[4]) || 0;
+      
+      // Use RSS (Resident Set Size) for more accurate memory usage
+      const memoryUsage = rssKB / 1024; // Convert KB to MB
+      
+      console.log(`Python service resource usage - PID: ${this.process.pid}, Memory: ${memoryUsage.toFixed(2)}MB, CPU: ${cpuPercent}%`);
       
       return { memoryUsage, cpuUsage: cpuPercent };
     } catch (error) {
+      console.error('Failed to get resource usage:', error);
       return { memoryUsage: 0, cpuUsage: 0 };
     }
   }
@@ -415,6 +429,13 @@ export class PythonServiceMonitor extends EventEmitter {
       const isHealthy = await this.checkHealth();
       this.health.isHealthy = isHealthy;
       this.health.lastHealthCheck = new Date();
+
+      // Update resource usage
+      if (this.process && this.process.pid) {
+        const resourceUsage = await this.getResourceUsage();
+        this.health.memoryUsage = resourceUsage.memoryUsage;
+        this.health.cpuUsage = resourceUsage.cpuUsage;
+      }
 
       if (!isHealthy && this.process) {
         console.warn('Health check failed, restarting service...');

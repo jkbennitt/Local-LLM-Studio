@@ -215,20 +215,24 @@ export default function SystemDashboard() {
   };
 
   useEffect(() => {
-    const fetchAllData = async () => {
-      setLoading(true);
+    const fetchAllData = async (isInitialLoad = false) => {
+      if (isInitialLoad) {
+        setLoading(true);
+      }
       await Promise.all([
         fetchSystemHealth(),
         fetchWebSocketStatus(),
         fetchResources()
       ]);
-      setLoading(false);
+      if (isInitialLoad) {
+        setLoading(false);
+      }
     };
 
-    fetchAllData();
+    fetchAllData(true); // Initial load
 
     if (autoRefresh) {
-      const interval = setInterval(fetchAllData, 10000); // Refresh every 10 seconds
+      const interval = setInterval(() => fetchAllData(false), 10000); // Refresh every 10 seconds without loading overlay
       return () => clearInterval(interval);
     }
   }, [autoRefresh]);
