@@ -17,6 +17,9 @@ import {
   asyncHandler 
 } from "./error_handler";
 import { EducationalContentGenerator } from "./educational_content";
+import { jobQueueManager } from "./ml_job_queue";
+import { adaptiveEducation } from "./adaptive_education";
+import { memoryManager } from "./memory_manager";
 
 const upload = multer({ dest: 'uploads/' });
 
@@ -285,85 +288,121 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Training process management
+  // Training process management with production job queue
   async function startTrainingProcess(jobId: number) {
     try {
       const job = await storage.getTrainingJob(jobId);
       if (!job) return;
 
-      // Update job status to running
-      const runningJob = await storage.updateTrainingJob(jobId, { status: 'running' });
-      broadcastTrainingUpdate(runningJob);
+      // Get dataset from datasetPath in job
+      let dataset = null;
+      if (job.datasetPath) {
+        // Find dataset by path
+        const datasets = await storage.getDatasets();
+        dataset = datasets.find(d => d.filePath === job.datasetPath);
+      }
+      
+      if (!dataset) {
+        console.error(`Dataset not found for job ${jobId}, using default config`);
+        // Use default dataset info for memory calculation
+        dataset = {
+          id: 0,
+          name: 'Unknown',
+          filePath: job.datasetPath || '',
+          fileSize: 10 * 1024 * 1024 // 10MB default
+        } as any;
+      }
 
-      // Simulate training progress updates
-      const progressInterval = setInterval(async () => {
-        const currentJob = await storage.getTrainingJob(jobId);
-        if (!currentJob || currentJob.status !== 'running') {
-          clearInterval(progressInterval);
-          return;
-        }
-
-        const newProgress = Math.min((currentJob.progress || 0) + 10, 90);
-        const newEpoch = Math.floor(newProgress / 30) + 1;
-        const trainingLoss = (2.5 - (newProgress / 100) * 2).toFixed(3);
-
-        const updatedJob = await storage.updateTrainingJob(jobId, { 
-          progress: newProgress,
-          currentEpoch: newEpoch,
-          trainingLoss: trainingLoss
+      // Check memory before queuing
+      const memMetrics = await memoryManager.getMemoryMetrics();
+      if (memMetrics.percentage > 95) {
+        await storage.updateTrainingJob(jobId, { 
+          status: 'failed',
+          error: 'Insufficient memory. Please try again later.'
         });
-        
-        broadcastTrainingUpdate(updatedJob);
+        broadcastTrainingUpdate(await storage.getTrainingJob(jobId)!);
+        return;
+      }
 
-        if (newProgress >= 90) {
-          clearInterval(progressInterval);
-          
-          // Call Python ML service for training
-          const result = await callMLService('train', {
-            job_id: jobId,
-            dataset_path: job.datasetPath,
-            config: job.config
+      // Parse config properly
+      const config = typeof job.config === 'object' ? job.config as any : {};
+      const modelName = config.model_name || 'gpt2';
+
+      // Optimize configuration based on available memory
+      const modelMemory = memoryManager.getModelMemoryEstimate(modelName);
+      const { optimizedConfig, strategies } = await memoryManager.optimizeForMLTraining(
+        modelMemory,
+        dataset.fileSize || 0,
+        config
+      );
+
+      // Update job with optimized config
+      await storage.updateTrainingJob(jobId, {
+        config: optimizedConfig
+      });
+
+      // Reload job with updated config
+      const updatedJob = await storage.getTrainingJob(jobId);
+      if (!updatedJob) return;
+
+      // Queue the job with production job queue manager
+      const queuedJob = await jobQueueManager.enqueueJob(updatedJob, dataset.filePath);
+      
+      // Track user interaction
+      if (updatedJob.userId) {
+        await adaptiveEducation.trackInteraction(
+          updatedJob.userId,
+          'start_training',
+          `Training ${modelName} with dataset ${dataset.name}`,
+          true,
+          0
+        );
+      }
+
+      // Listen for job progress updates from queue manager
+      jobQueueManager.on('job:progress', (data) => {
+        if (data.jobId === jobId) {
+          broadcastTrainingUpdate({
+            id: jobId,
+            status: 'running',
+            progress: data.progress,
+            currentEpoch: data.epoch,
+            trainingLoss: data.loss
           });
+        }
+      });
 
-          if (result.success) {
-            // Create trained model record
-            const trainedModel = await storage.createTrainedModel({
-              jobId,
-              userId: job.userId!,
-              name: job.name,
-              version: "1.0.0",
-              modelPath: result.model_path,
-              performance: result.performance,
-              deployed: false
-            });
-
-            // Update job as completed
-            const completedJob = await storage.updateTrainingJob(jobId, { 
-              status: 'completed',
-              progress: 100,
-              modelPath: result.model_path
-            });
-            
-            broadcastTrainingUpdate(completedJob);
-          } else {
-            // Update job as failed
-            const failedJob = await storage.updateTrainingJob(jobId, { 
-              status: 'failed',
-              error: result.error
-            });
-            
-            broadcastTrainingUpdate(failedJob);
+      // Listen for job completion
+      jobQueueManager.on('job:completed', async (completedJob) => {
+        if (completedJob.id === jobId) {
+          const finalJob = await storage.getTrainingJob(jobId);
+          if (finalJob) {
+            broadcastTrainingUpdate(finalJob);
           }
         }
-      }, 2000); // Update every 2 seconds
+      });
+
+      // Listen for job failure
+      jobQueueManager.on('job:failed', async (failedJob) => {
+        if (failedJob.id === jobId) {
+          const finalJob = await storage.getTrainingJob(jobId);
+          if (finalJob) {
+            broadcastTrainingUpdate(finalJob);
+          }
+        }
+      });
 
     } catch (error) {
-      console.error('Training process error:', error);
-      const failedJob = await storage.updateTrainingJob(jobId, { 
+      console.error('Error starting training process:', error);
+      await storage.updateTrainingJob(jobId, { 
         status: 'failed',
-        error: (error as Error).message
+        error: error instanceof Error ? error.message : 'Unknown error'
       });
-      broadcastTrainingUpdate(failedJob);
+      
+      const failedJob = await storage.getTrainingJob(jobId);
+      if (failedJob) {
+        broadcastTrainingUpdate(failedJob);
+      }
     }
   }
 
@@ -469,6 +508,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const { deployment } = await import('./deployment_config');
     const health = await deployment.healthCheck();
     res.json(health);
+  }));
+  
+  // Adaptive education endpoints
+  app.get('/api/education/content/:topic', asyncHandler(async (req: any, res: any) => {
+    const { topic } = req.params;
+    const userId = req.query.userId ? parseInt(req.query.userId) : 1;
+    
+    const content = await adaptiveEducation.generateAdaptiveContent(
+      userId,
+      topic,
+      req.query.context || 'general'
+    );
+    
+    res.json(content);
+  }));
+  
+  app.get('/api/education/tips', asyncHandler(async (req: any, res: any) => {
+    const userId = req.query.userId ? parseInt(req.query.userId) : 1;
+    const action = req.query.action || 'general';
+    const state = req.query.state || {};
+    
+    const tips = await adaptiveEducation.generateContextualTips(userId, action, state);
+    res.json({ tips });
+  }));
+  
+  app.post('/api/education/track', asyncHandler(async (req: any, res: any) => {
+    const { userId, action, context, success, timeSpent, errors } = req.body;
+    
+    await adaptiveEducation.trackInteraction(
+      userId,
+      action,
+      context,
+      success,
+      timeSpent,
+      errors
+    );
+    
+    res.json({ success: true });
+  }));
+  
+  // Memory management endpoints
+  app.get('/api/memory/report', asyncHandler(async (req: any, res: any) => {
+    const report = await memoryManager.createMemoryReport();
+    res.json({ report });
+  }));
+  
+  // Job queue status
+  app.get('/api/jobs/metrics', asyncHandler(async (req: any, res: any) => {
+    const metrics = jobQueueManager.getMetrics();
+    res.json(metrics);
+  }));
+  
+  app.delete('/api/jobs/:id', asyncHandler(async (req: any, res: any) => {
+    const jobId = parseInt(req.params.id);
+    const cancelled = await jobQueueManager.cancelJob(jobId);
+    res.json({ success: cancelled });
   }));
 
   // Add global error handler at the end

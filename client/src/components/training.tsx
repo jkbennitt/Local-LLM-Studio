@@ -9,6 +9,8 @@ import { useWebSocket } from "@/hooks/use-websocket";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { startTraining, stopTraining } from "@/lib/api";
 import { TrainingJob, WebSocketMessage } from "@/types";
+import AdaptiveEducation from "./adaptive-education";
+import PerformanceMonitor from "./performance-monitor";
 
 interface TrainingProps {
   selectedTemplate: number | null;
@@ -188,6 +190,21 @@ export default function Training({
       </div>
 
       <CardContent className="p-6">
+        {/* Performance Monitor */}
+        <div className="mb-6">
+          <PerformanceMonitor compact />
+        </div>
+        
+        {/* Adaptive Education */}
+        {selectedTemplate && (
+          <AdaptiveEducation
+            topic="model-training"
+            context="training-setup"
+            currentAction={trainingStarted ? "monitor_training" : "configure_training"}
+            className="mb-6"
+          />
+        )}
+        
         {/* Training Configuration */}
         <div className="mb-8">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Training Configuration</h3>

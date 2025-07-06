@@ -1,4 +1,4 @@
-import { Database, Settings, Play, FlaskConical } from "lucide-react";
+import { Database, Settings, Play, FlaskConical, BarChart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -93,6 +93,17 @@ export default function Sidebar({ activeStep, onStepChange, currentJob, jobs }: 
           </div>
         </CardContent>
       </Card>
+      
+      {/* System Dashboard Link */}
+      <div className="mt-4">
+        <a
+          href="/dashboard"
+          className="flex items-center space-x-3 px-4 py-3 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+        >
+          <BarChart className="w-5 h-5 text-gray-600" />
+          <span className="font-medium text-gray-700">System Dashboard</span>
+        </a>
+      </div>
     </div>
   );
 }
