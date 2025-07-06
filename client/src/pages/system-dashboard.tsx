@@ -20,9 +20,11 @@ import {
   Database,
   Network,
   Clock,
-  Gauge
+  Gauge,
+  ArrowLeft
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useLocation } from 'wouter';
 
 interface SystemHealth {
   overall: {
@@ -116,6 +118,7 @@ export default function SystemDashboard() {
   const [loading, setLoading] = useState(true);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
 
   const fetchSystemHealth = async () => {
     try {
@@ -283,6 +286,14 @@ export default function SystemDashboard() {
           <p className="text-muted-foreground">Comprehensive monitoring and control center</p>
         </div>
         <div className="flex items-center space-x-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setLocation('/')}
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Main Page
+          </Button>
           <Button
             variant="outline"
             size="sm"
