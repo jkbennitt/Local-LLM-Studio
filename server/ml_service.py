@@ -37,6 +37,15 @@ from datetime import datetime
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Import ML optimizer
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+try:
+    from ml_optimizer import MLOptimizer, TrainingMonitor, create_production_config
+    OPTIMIZER_AVAILABLE = True
+except ImportError:
+    OPTIMIZER_AVAILABLE = False
+    logger.warning("ML Optimizer not available")
+
 class MLService:
     def __init__(self):
         self.models_dir = Path("models")
@@ -120,6 +129,17 @@ class MLService:
         """Train a model with the given configuration"""
         try:
             logger.info(f"Starting training for job {job_id}")
+            
+            # Optimize configuration if optimizer available
+            if OPTIMIZER_AVAILABLE:
+                optimizer = MLOptimizer()
+                dataset = self.load_dataset(dataset_path, Path(dataset_path).suffix[1:].lower())
+                dataset_size = len(dataset) if dataset else 100
+                config = create_production_config({**config, 'dataset_size': dataset_size})
+                
+                # Get time estimate
+                time_estimate = optimizer.estimate_training_time(dataset_size, config)
+                logger.info(f"Estimated training time: {time_estimate['estimated_minutes']} minutes")
             
             # Extract config
             model_name = config.get("model_name", "gpt2")
