@@ -9,7 +9,7 @@ export function useWebSocket(onMessage?: (message: WebSocketMessage) => void) {
   const [lastMessage, setLastMessage] = useState<WebSocketMessage | null>(null);
   const [reconnectAttempts, setReconnectAttempts] = useState(0);
   const [connectionQuality, setConnectionQuality] = useState<'good' | 'poor' | 'unknown'>('unknown');
-  
+
   const reconnectTimer = useRef<NodeJS.Timeout | null>(null);
   const heartbeatTimer = useRef<NodeJS.Timeout | null>(null);
   const lastHeartbeat = useRef<number>(0);
@@ -41,12 +41,12 @@ export function useWebSocket(onMessage?: (message: WebSocketMessage) => void) {
     if (heartbeatTimer.current) {
       clearInterval(heartbeatTimer.current);
     }
-    
+
     heartbeatTimer.current = setInterval(() => {
       if (wsRef.current?.readyState === WebSocket.OPEN) {
         const now = Date.now();
         lastHeartbeat.current = now;
-        
+
         try {
           wsRef.current.send(JSON.stringify({
             type: 'heartbeat',
@@ -64,7 +64,7 @@ export function useWebSocket(onMessage?: (message: WebSocketMessage) => void) {
     if (wsRef.current?.readyState === WebSocket.OPEN && messageQueue.current.length > 0) {
       const queue = [...messageQueue.current];
       messageQueue.current = [];
-      
+
       queue.forEach(message => {
         try {
           wsRef.current?.send(JSON.stringify(message));
@@ -87,10 +87,10 @@ export function useWebSocket(onMessage?: (message: WebSocketMessage) => void) {
     }
 
     setStatus('connecting');
-    
+
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const wsUrl = `${protocol}//${window.location.host}/ws`;
-    
+
     try {
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
@@ -100,7 +100,7 @@ export function useWebSocket(onMessage?: (message: WebSocketMessage) => void) {
         setReconnectAttempts(0);
         setConnectionQuality('good');
         console.log('WebSocket connected');
-        
+
         startHeartbeat();
         processMessageQueue();
       };
@@ -108,12 +108,12 @@ export function useWebSocket(onMessage?: (message: WebSocketMessage) => void) {
       ws.onmessage = (event) => {
         try {
           const message = JSON.parse(event.data);
-          
+
           // Handle heartbeat responses
           if (message.type === 'heartbeat') {
             const now = Date.now();
             const latency = now - lastHeartbeat.current;
-            
+
             if (latency > 5000) {
               setConnectionQuality('poor');
             } else {
@@ -121,7 +121,7 @@ export function useWebSocket(onMessage?: (message: WebSocketMessage) => void) {
             }
             return;
           }
-          
+
           setLastMessage(message);
           if (onMessage) {
             onMessage(message);
@@ -135,14 +135,14 @@ export function useWebSocket(onMessage?: (message: WebSocketMessage) => void) {
         clearTimers();
         setStatus('disconnected');
         console.log('WebSocket disconnected:', event.code, event.reason);
-        
+
         // Only attempt to reconnect if not manually disconnected
         if (!isManualDisconnect.current && reconnectAttempts < maxReconnectAttempts) {
           setStatus('reconnecting');
           const delay = calculateBackoffDelay(reconnectAttempts);
-          
+
           console.log(`Attempting to reconnect in ${delay}ms (attempt ${reconnectAttempts + 1}/${maxReconnectAttempts})`);
-          
+
           reconnectTimer.current = setTimeout(() => {
             setReconnectAttempts(prev => prev + 1);
             connect();
@@ -167,12 +167,12 @@ export function useWebSocket(onMessage?: (message: WebSocketMessage) => void) {
   const disconnect = useCallback(() => {
     isManualDisconnect.current = true;
     clearTimers();
-    
+
     if (wsRef.current) {
       wsRef.current.close(1000, 'Manual disconnect');
       wsRef.current = null;
     }
-    
+
     setStatus('disconnected');
     setReconnectAttempts(0);
     messageQueue.current = [];
@@ -189,7 +189,7 @@ export function useWebSocket(onMessage?: (message: WebSocketMessage) => void) {
     } else {
       console.warn('WebSocket is not connected, queuing message');
       messageQueue.current.push(message);
-      
+
       // Attempt to reconnect if not already trying
       if (status === 'disconnected' && !isManualDisconnect.current) {
         connect();
@@ -210,7 +210,7 @@ export function useWebSocket(onMessage?: (message: WebSocketMessage) => void) {
   useEffect(() => {
     isManualDisconnect.current = false;
     connect();
-    
+
     return () => {
       isManualDisconnect.current = true;
       clearTimers();
@@ -250,7 +250,7 @@ export function useWebSocket(onMessage?: (message: WebSocketMessage) => void) {
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
-    
+
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);

@@ -73,6 +73,7 @@ interface SystemHealth {
     memoryOptimizationHistory: string[];
     autoResourceOptimization: boolean;
     gracefulDegradationEnabled: boolean;
+    gracefulDegradationEnabled: boolean;
   };
 }
 
@@ -161,7 +162,7 @@ export default function SystemDashboard() {
         method: 'POST'
       });
       const data = await response.json();
-      
+
       if (data.success) {
         toast({
           title: "Service Restarted",
@@ -198,12 +199,12 @@ export default function SystemDashboard() {
         })
       });
       const data = await response.json();
-      
+
       toast({
         title: "Resources Optimized",
         description: "System configuration optimized for current resources",
       });
-      
+
       fetchSystemHealth();
     } catch (error) {
       toast({
@@ -369,7 +370,7 @@ export default function SystemDashboard() {
                       <p className="font-medium">{(systemHealth.services?.pythonService?.cpuUsage || 0).toFixed(1)}%</p>
                     </div>
                   </div>
-                  
+
                   {systemHealth.services?.pythonService?.lastError && (
                     <Alert>
                       <AlertTriangle className="h-4 w-4" />
@@ -378,7 +379,7 @@ export default function SystemDashboard() {
                       </AlertDescription>
                     </Alert>
                   )}
-                  
+
                   <Button
                     onClick={restartPythonService}
                     variant="outline"
@@ -451,7 +452,7 @@ export default function SystemDashboard() {
                       <span>Total: {formatBytes(systemHealth.resources?.memory?.total || 0)}</span>
                     </div>
                   </div>
-                  
+
                   {systemHealth.resources?.memory?.recommendations?.length > 0 && (
                     <div className="text-xs space-y-1">
                       <span className="text-muted-foreground">Recommendations:</span>
@@ -563,7 +564,7 @@ export default function SystemDashboard() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{(systemHealth.jobs?.successRate || 0).toFixed(1)}%</div>
+                 <div className="text-2xl font-bold">{(systemHealth.jobs?.successRate || 0).toFixed(1)}%</div>
                   <p className="text-xs text-muted-foreground">Overall success rate</p>
                 </CardContent>
               </Card>
@@ -592,7 +593,7 @@ export default function SystemDashboard() {
                     <p className="text-2xl font-bold">{wsStatus.activeConnections}</p>
                   </div>
                 </div>
-                
+
                 <div className="space-y-2">
                   <h4 className="font-semibold">Connection Details:</h4>
                   {wsStatus.connections.map((conn, idx) => (
