@@ -14,8 +14,8 @@ A full-stack machine learning training platform that enables users to fine-tune 
 - **Model Versioning**: Save and manage different model versions with metadata
 
 ### Educational Integration
-- **Interactive Learning**: Built-in explanations and tutorials for ML concepts
-- **Progressive Disclosure**: Advanced options hidden behind collapsible sections
+- **Adaptive Learning System**: Progressive disclosure of ML concepts based on user skill level
+- **Interactive Tutorials**: Built-in explanations and tutorials for ML concepts
 - **Natural Language Configuration**: "Make responses more creative" translates to temperature adjustments
 - **Performance Insights**: Human-readable quality assessments and optimization suggestions
 
@@ -24,6 +24,7 @@ A full-stack machine learning training platform that enables users to fine-tune 
 - **Resource Optimization**: Automatic batch sizing based on available memory
 - **Error Recovery**: Comprehensive error handling with educational feedback
 - **WebSocket Real-time Updates**: Live training progress and status updates
+- **System Dashboard**: Comprehensive monitoring of all training jobs and system health
 
 ## 🛠 Technology Stack
 
@@ -37,7 +38,7 @@ A full-stack machine learning training platform that enables users to fine-tune 
 
 ### Backend
 - **Express.js** + **TypeScript** for the main API server
-- **Python FastAPI** service for ML operations
+- **Python FastAPI/Service** for ML operations
 - **Drizzle ORM** with PostgreSQL compatibility
 - **WebSocket** connections for real-time communication
 - **Multer** for file upload handling
@@ -62,7 +63,9 @@ A full-stack machine learning training platform that enables users to fine-tune 
 # Install Node.js dependencies
 npm install
 
-# Python dependencies are automatically managed by the platform
+# Install Python dependencies (handled automatically by setup script)
+chmod +x setup.sh
+./setup.sh
 ```
 
 ### 2. Start the Development Server
@@ -94,9 +97,11 @@ ml-training-platform/
 ├── server/                 # Express.js backend
 │   ├── ml_service.py       # Python ML training service
 │   ├── ml_optimizer.py     # Resource optimization utilities
-│   ├── educational_content.ts # Learning content system
+│   ├── adaptive_education.ts # Adaptive learning system
 │   ├── routes.ts           # API route definitions
-│   └── storage.ts          # Data persistence layer
+│   ├── storage.ts          # Data persistence layer
+│   ├── python_service_monitor.ts # Python service management
+│   └── resource_detector.ts # System resource detection
 ├── shared/                 # Shared TypeScript schemas
 ├── models/                 # Trained model storage
 ├── uploads/                # User uploaded datasets
@@ -150,6 +155,12 @@ ml-training-platform/
 - `POST /api/datasets` - Upload new dataset
 - `GET /api/datasets/:id` - Get dataset details
 
+### System
+- `GET /api/system/health` - System health check
+- `GET /api/system/health-detailed` - Detailed system status
+- `GET /api/resources/detect` - Current system resources
+- `POST /api/resources/optimize` - Optimize training parameters
+
 ### Templates
 - `GET /api/templates` - Get available model templates
 
@@ -157,17 +168,24 @@ ml-training-platform/
 
 ### Common Issues
 
+**Python Service Not Starting**
+```bash
+# Check Python dependencies
+python3 -c "import torch, transformers; print('Dependencies OK')"
+
+# Reinstall if needed
+./setup.sh --force
+```
+
 **Training Fails with Memory Error**
 - The platform automatically optimizes batch sizes
 - Try reducing dataset size or using a smaller model
+- Check the System Dashboard for resource usage
 
 **WebSocket Connection Issues**
 - Check that port 5000 is available
 - Refresh the page to reconnect
-
-**Python Service Not Starting**
-- Python dependencies are managed automatically
-- Check console logs for specific error messages
+- Monitor connection status in the System Dashboard
 
 ### Performance Optimization
 
@@ -175,9 +193,7 @@ ml-training-platform/
 - **Training Speed**: Use smaller datasets for faster iteration
 - **Model Size**: Start with smaller models and scale up as needed
 
-## 🚀 Deployment
-
-### Replit Deployment (Recommended)
+## 🚀 Deployment on Replit
 
 The platform is optimized for Replit deployment:
 
@@ -196,16 +212,17 @@ No environment variables required for basic operation. The platform uses intelli
 
 ## 🎓 Educational Features
 
-### Learning System
-- **Interactive Tutorials**: Step-by-step guidance for each workflow
-- **Contextual Help**: Explanations appear as you encounter ML concepts
-- **Performance Insights**: Plain-English explanations of model behavior
-- **Best Practices**: Built-in suggestions for data preparation and training
+### Adaptive Learning System
+- **Skill Level Detection**: Automatically adapts content based on user interactions
+- **Contextual Learning**: Provides relevant educational content based on current workflow step
+- **Interactive Elements**: Quizzes, experiments, and predictions to reinforce learning
+- **Progress Tracking**: Monitors user understanding and identifies knowledge gaps
 
-### Success Metrics
+### System Insights
+- **Resource Monitoring**: Real-time CPU, memory, and system usage tracking
+- **Performance Analytics**: Track how your models perform over time
 - **Quality Scoring**: Automated evaluation with improvement suggestions
-- **Usage Analytics**: Track how your deployed models perform
-- **Learning Progress**: Visual indicators of training effectiveness
+- **Best Practices**: Built-in suggestions for data preparation and training
 
 ## 🤝 Contributing
 
@@ -215,12 +232,15 @@ No environment variables required for basic operation. The platform uses intelli
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
+See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed contribution guidelines.
+
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## 🔗 Additional Resources
 
+- [Local Setup Guide](LOCAL_SETUP.md) - For running on your own hardware
 - [Hugging Face Transformers Documentation](https://huggingface.co/docs/transformers)
 - [React Query Documentation](https://tanstack.com/query/latest)
 - [Tailwind CSS Documentation](https://tailwindcss.com/docs)
@@ -230,8 +250,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 For support and questions:
 - Check the built-in help system in the application
+- Review the System Dashboard for real-time diagnostics
+- Check the [troubleshooting section](#-troubleshooting) above
 - Review the educational content for each workflow
-- Check common troubleshooting steps above
 
 ---
 
