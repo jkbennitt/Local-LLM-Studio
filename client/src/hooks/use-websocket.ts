@@ -101,8 +101,13 @@ export function useWebSocket(onMessage?: (message: WebSocketMessage) => void) {
         setConnectionQuality('good');
         console.log('WebSocket connected');
 
-        startHeartbeat();
-        processMessageQueue();
+        try {
+          startHeartbeat();
+          processMessageQueue();
+        } catch (error) {
+          console.error('Error in WebSocket onopen:', error);
+          setStatus('error');
+        }
       };
 
       ws.onmessage = (event) => {
@@ -157,6 +162,9 @@ export function useWebSocket(onMessage?: (message: WebSocketMessage) => void) {
         setStatus('error');
         setConnectionQuality('poor');
         console.error('WebSocket error:', error);
+        
+        // Clear timers to prevent memory leaks
+        clearTimers();
       };
     } catch (error) {
       console.error('Failed to create WebSocket:', error);

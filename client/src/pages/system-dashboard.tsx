@@ -73,7 +73,6 @@ interface SystemHealth {
     memoryOptimizationHistory: string[];
     autoResourceOptimization: boolean;
     gracefulDegradationEnabled: boolean;
-    gracefulDegradationEnabled: boolean;
   };
 }
 

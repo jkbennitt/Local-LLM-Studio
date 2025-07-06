@@ -45,15 +45,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const startHeartbeat = () => {
       heartbeatInterval = setInterval(() => {
         if (ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({
-            type: 'heartbeat',
-            timestamp: Date.now()
-          }));
+          try {
+            ws.send(JSON.stringify({
+              type: 'heartbeat',
+              timestamp: Date.now()
+            }));
+          } catch (error) {
+            console.error('Failed to send heartbeat:', error);
+            clearInterval(heartbeatInterval);
+            wsConnections.delete(connectionId);
+          }
         } else {
           clearInterval(heartbeatInterval);
           wsConnections.delete(connectionId);
         }
       }, 30000); // 30 second heartbeat
+    };
+    
+    const cleanup = () => {
+      if (heartbeatInterval) {
+        clearInterval(heartbeatInterval);
+      }
+      wsConnections.delete(connectionId);
     };
     
     startHeartbeat();
@@ -66,11 +79,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           (ws as any).jobId = data.jobId;
         } else if (data.type === 'heartbeat') {
           // Respond to heartbeat with timestamp for latency calculation
-          ws.send(JSON.stringify({
-            type: 'heartbeat',
-            timestamp: Date.now(),
-            originalTimestamp: data.timestamp
-          }));
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({
+              type: 'heartbeat',
+              timestamp: Date.now(),
+              originalTimestamp: data.timestamp
+            }));
+          }
         }
       } catch (error) {
         console.error('WebSocket message error:', error);
@@ -78,8 +93,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
     
-    ws.on('close', () => {
-      wsConnections.delete(connectionId);
+    ws.on('error', (error: Error) => {
+      console.error('WebSocket connection error:', error);
+      handleWebSocketError(ws, error);
+      cleanup();
+    });
+    
+    ws.on('close', (code: number, reason: string) => {
+      console.log(`WebSocket connection closed: ${code} - ${reason}`);
+      cleanup();
     });
   });
 
