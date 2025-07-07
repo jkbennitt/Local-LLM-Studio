@@ -207,15 +207,18 @@ def main():
         # Start health monitoring server
         health_server = start_health_server()
         
+        # If no command line args, run as a persistent service
         if len(sys.argv) < 2:
-            print("Usage: python ml_service.py <operation> <data>")
+            print("Starting ML service in server mode...")
             
-            # Keep service running for health checks
+            # Keep service running for health checks and future operations
             try:
                 while True:
                     time.sleep(1)
             except KeyboardInterrupt:
                 print("Service shutting down...")
+                if health_server:
+                    health_server.shutdown()
             return
             
     except ImportError as e:
