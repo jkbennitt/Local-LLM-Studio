@@ -41,17 +41,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     
     console.log(`WebSocket connected: ${connectionId}`);
     
-    // Set up heartbeat for connection stability
+    // Set up heartbeat for connection stability (simplified)
     let heartbeatInterval: NodeJS.Timeout;
     let isAlive = true;
     
     const startHeartbeat = () => {
-      // Wait a bit before starting heartbeat to allow connection to stabilize
+      // Wait longer before starting heartbeat to allow connection to stabilize
       setTimeout(() => {
         if (ws.readyState === WebSocket.OPEN) {
           heartbeatInterval = setInterval(() => {
-            if (ws.readyState === WebSocket.OPEN && isAlive) {
-              isAlive = false;
+            if (ws.readyState === WebSocket.OPEN) {
               try {
                 ws.send(JSON.stringify({
                   type: 'heartbeat',
@@ -62,15 +61,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 clearInterval(heartbeatInterval);
                 wsConnections.delete(connectionId);
               }
-            } else if (!isAlive) {
-              console.log(`WebSocket ${connectionId} is not responding, closing connection`);
-              clearInterval(heartbeatInterval);
-              wsConnections.delete(connectionId);
-              ws.terminate();
             }
-          }, 30000); // 30 second heartbeat
+          }, 60000); // 60 second heartbeat (less aggressive)
         }
-      }, 1000); // Start heartbeat after 1 second
+      }, 10000); // Wait 10 seconds before starting heartbeat
     };
     
     const cleanup = () => {
