@@ -39,27 +39,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const connectionId = Math.random().toString(36).substr(2, 9);
     wsConnections.set(connectionId, ws);
     
+    console.log(`WebSocket connected: ${connectionId}`);
+    
     // Set up heartbeat for connection stability
     let heartbeatInterval: NodeJS.Timeout;
+    let isAlive = true;
     
     const startHeartbeat = () => {
-      heartbeatInterval = setInterval(() => {
+      // Wait a bit before starting heartbeat to allow connection to stabilize
+      setTimeout(() => {
         if (ws.readyState === WebSocket.OPEN) {
-          try {
-            ws.send(JSON.stringify({
-              type: 'heartbeat',
-              timestamp: Date.now()
-            }));
-          } catch (error) {
-            console.error('Failed to send heartbeat:', error);
-            clearInterval(heartbeatInterval);
-            wsConnections.delete(connectionId);
-          }
-        } else {
-          clearInterval(heartbeatInterval);
-          wsConnections.delete(connectionId);
+          heartbeatInterval = setInterval(() => {
+            if (ws.readyState === WebSocket.OPEN && isAlive) {
+              isAlive = false;
+              try {
+                ws.send(JSON.stringify({
+                  type: 'heartbeat',
+                  timestamp: Date.now()
+                }));
+              } catch (error) {
+                console.error('Failed to send heartbeat:', error);
+                clearInterval(heartbeatInterval);
+                wsConnections.delete(connectionId);
+              }
+            } else if (!isAlive) {
+              console.log(`WebSocket ${connectionId} is not responding, closing connection`);
+              clearInterval(heartbeatInterval);
+              wsConnections.delete(connectionId);
+              ws.terminate();
+            }
+          }, 30000); // 30 second heartbeat
         }
-      }, 30000); // 30 second heartbeat
+      }, 1000); // Start heartbeat after 1 second
     };
     
     const cleanup = () => {
@@ -68,6 +79,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       wsConnections.delete(connectionId);
     };
+    
+    // Send initial connection success message
+    try {
+      ws.send(JSON.stringify({
+        type: 'connection',
+        status: 'connected',
+        connectionId: connectionId,
+        timestamp: Date.now()
+      }));
+    } catch (error) {
+      console.error('Failed to send connection message:', error);
+    }
     
     startHeartbeat();
     
@@ -78,7 +101,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (data.type === 'subscribe' && data.jobId) {
           (ws as any).jobId = data.jobId;
         } else if (data.type === 'heartbeat') {
-          // Respond to heartbeat with timestamp for latency calculation
+          // Mark connection as alive and respond to heartbeat
+          isAlive = true;
           if (ws.readyState === WebSocket.OPEN) {
             ws.send(JSON.stringify({
               type: 'heartbeat',
@@ -86,6 +110,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
               originalTimestamp: data.timestamp
             }));
           }
+        } else if (data.type === 'pong') {
+          // Mark connection as alive for pong messages
+          isAlive = true;
         }
       } catch (error) {
         console.error('WebSocket message error:', error);

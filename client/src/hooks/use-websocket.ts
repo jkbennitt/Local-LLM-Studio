@@ -114,6 +114,13 @@ export function useWebSocket(onMessage?: (message: WebSocketMessage) => void) {
         try {
           const message = JSON.parse(event.data);
 
+          // Handle connection confirmation
+          if (message.type === 'connection') {
+            console.log('WebSocket connection confirmed:', message);
+            setConnectionQuality('good');
+            return;
+          }
+
           // Handle heartbeat responses
           if (message.type === 'heartbeat') {
             const now = Date.now();
