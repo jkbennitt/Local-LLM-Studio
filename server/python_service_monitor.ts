@@ -262,10 +262,8 @@ export class PythonServiceMonitor extends EventEmitter {
    */
   private async spawnPythonService(): Promise<void> {
     return new Promise((resolve, reject) => {
-      // Try simplified service first, fallback to full service
-      const simplifiedScript = join(process.cwd(), 'server/ml_service_simple.py');
-      const fullScript = join(process.cwd(), 'server/ml_service.py');
-      const pythonScript = existsSync(simplifiedScript) ? simplifiedScript : fullScript;
+      // Use unified service
+      const pythonScript = join(process.cwd(), 'server/ml_service_unified.py');
       
       this.process = spawn('python3', [pythonScript], {
         stdio: ['pipe', 'pipe', 'pipe'],
@@ -307,10 +305,22 @@ export class PythonServiceMonitor extends EventEmitter {
           this.logToFile('STDOUT', output);
           console.log('Python service output:', output.trim());
           
-          if (output.includes('Service ready')) {
-            serviceReady = true;
-            if (startupTimeout) clearTimeout(startupTimeout);
-            resolve();
+          // Check for JSON output indicating service is ready
+          try {
+            const lines = output.trim().split('\n');
+            for (const line of lines) {
+              if (line.trim().startsWith('{')) {
+                const parsed = JSON.parse(line.trim());
+                if (parsed.status === 'ready' || parsed.status === 'healthy') {
+                  serviceReady = true;
+                  if (startupTimeout) clearTimeout(startupTimeout);
+                  resolve();
+                  break;
+                }
+              }
+            }
+          } catch (e) {
+            // Not JSON, ignore
           }
         });
       }

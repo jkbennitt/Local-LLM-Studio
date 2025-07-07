@@ -102,11 +102,11 @@ export class MLJobQueueManager extends EventEmitter {
       job_id: job.id
     };
 
-    const pythonProcess = spawn('python3', ['server/ml_service_simple.py'], {
+    const pythonProcess = spawn('python3', ['server/ml_service_unified.py'], {
       stdio: ['pipe', 'pipe', 'pipe']
     });
 
-    // Send training request via stdin using the correct format
+    // Send training request via stdin using the unified service format
     const requestData = JSON.stringify({
       action: 'train_model',
       dataset_path: job.datasetPath,
@@ -198,7 +198,7 @@ export class MLJobQueueManager extends EventEmitter {
 
             this.emit('job:completed', job);
           } else {
-            throw new Error(result.error || 'Training failed');
+            throw new Error(result?.error || 'Training failed - no valid result received');
           }
         } catch (error) {
           await storage.updateTrainingJob(job.id, {

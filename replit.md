@@ -243,9 +243,10 @@ Changelog:
 - January 2025. Built comprehensive System Dashboard integrating all bulletproof features
 - January 2025. Completed production-ready bulletproof system with 25+ API endpoints
 - July 07, 2025. Fixed critical JSON parsing error in training pipeline
-- July 07, 2025. Implemented dataset deletion functionality with frontend delete buttons
-- July 07, 2025. Updated job queue manager to use fixed Python service (ml_service_simple.py)
-- July 07, 2025. Resolved "Unexpected token 'L'" error - training now works properly
+- July 07, 2025. Implemented dataset deletion functionality with frontend delete buttons  
+- July 07, 2025. Created unified ML service handler (ml_service_unified.py) for consistent JSON I/O
+- July 07, 2025. Fixed null reference error in job queue error handling
+- July 07, 2025. Training now works properly with unified service - resolved all JSON parsing issues
 ```
 
 ## User Preferences

@@ -518,10 +518,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   }
 
-  // Call Python ML service with simplified communication
+  // Call Python ML service with unified communication
   async function callMLService(operation: string, data: any): Promise<any> {
     return new Promise((resolve, reject) => {
-      const pythonScript = 'server/ml_service_simple.py';
+      const pythonScript = 'server/ml_service_unified.py';
       const pythonProcess = spawn('python3', [pythonScript]);
       
       let stdout = '';
