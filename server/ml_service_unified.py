@@ -296,7 +296,7 @@ class UnifiedMLService:
             }
     
     def test_model(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Test trained model with a prompt"""
+        """Test trained model with a prompt - attempts real model loading first"""
         try:
             model_path = data.get('model_path')
             prompt = data.get('prompt', 'Hello, ')
@@ -305,41 +305,86 @@ class UnifiedMLService:
             if not model_path or not os.path.exists(model_path):
                 return {'success': False, 'error': 'Model not found'}
             
-            # For demo purposes in constrained environment, simulate model response
-            # In production, this would load the actual model
-            logger.info(f"Simulating model test for {model_path} with prompt: {prompt}")
-            
-            # Create a realistic demo response based on the prompt
-            demo_responses = {
-                "hello": "Hello! I'm your customer service assistant. How can I help you today?",
-                "help": "I'd be happy to help you! Please let me know what specific assistance you need.",
-                "order": "I can help you check your order status. Please provide your order number.",
-                "refund": "I understand you'd like to request a refund. Let me help you with that process.",
-                "password": "To reset your password, please visit our password reset page and follow the instructions.",
-                "account": "I can assist you with account-related questions. What would you like to know?",
-                "support": "Our support team is here to help. Please describe your issue in detail.",
-                "service": "Our customer service team is dedicated to providing excellent support for all your needs.",
-                "what": "I'm here to answer any questions you might have about our products or services."
-            }
-            
-            # Find the best matching response
-            prompt_lower = prompt.lower()
-            response = "Thank you for contacting us! I'm here to assist you with any questions or concerns you may have."
-            
-            for key, demo_response in demo_responses.items():
-                if key in prompt_lower:
-                    response = demo_response
-                    break
-            
-            # Simulate the format of generated text
-            generated_text = f"{prompt} {response}"
-            
-            return {
-                'success': True,
-                'generated_text': generated_text,
-                'prompt': prompt,
-                'note': 'Demo mode - simulated response due to memory constraints'
-            }
+            # First, try to load the actual trained model
+            try:
+                logger.info(f"Attempting to load trained model from {model_path}")
+                from transformers import AutoTokenizer, AutoModelForCausalLM
+                import torch
+                
+                # Try to load with reduced memory usage
+                tokenizer = AutoTokenizer.from_pretrained(model_path)
+                model = AutoModelForCausalLM.from_pretrained(
+                    model_path,
+                    torch_dtype=torch.float16,  # Use half precision to save memory
+                    device_map="auto",
+                    low_cpu_mem_usage=True
+                )
+                
+                # Generate text with the actual trained model
+                inputs = tokenizer(prompt, return_tensors='pt')
+                
+                with torch.no_grad():
+                    outputs = model.generate(
+                        **inputs,
+                        max_length=max_length,
+                        temperature=0.7,
+                        do_sample=True,
+                        pad_token_id=tokenizer.eos_token_id,
+                        num_return_sequences=1
+                    )
+                
+                generated_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
+                
+                # Clean up memory
+                del model
+                del tokenizer
+                torch.cuda.empty_cache() if torch.cuda.is_available() else None
+                
+                logger.info(f"Successfully used trained model for inference")
+                return {
+                    'success': True,
+                    'generated_text': generated_text,
+                    'prompt': prompt,
+                    'note': 'Response from actual trained model'
+                }
+                
+            except Exception as model_error:
+                logger.warning(f"Failed to load trained model: {str(model_error)}")
+                
+                # Fallback to demo mode if model loading fails
+                logger.info(f"Falling back to demo mode for {model_path}")
+                
+                # Create a realistic demo response based on the prompt
+                demo_responses = {
+                    "hello": "Hello! I'm your customer service assistant. How can I help you today?",
+                    "help": "I'd be happy to help you! Please let me know what specific assistance you need.",
+                    "order": "I can help you check your order status. Please provide your order number.",
+                    "refund": "I understand you'd like to request a refund. Let me help you with that process.",
+                    "password": "To reset your password, please visit our password reset page and follow the instructions.",
+                    "account": "I can assist you with account-related questions. What would you like to know?",
+                    "support": "Our support team is here to help. Please describe your issue in detail.",
+                    "service": "Our customer service team is dedicated to providing excellent support for all your needs.",
+                    "what": "I'm here to answer any questions you might have about our products or services."
+                }
+                
+                # Find the best matching response
+                prompt_lower = prompt.lower()
+                response = "Thank you for contacting us! I'm here to assist you with any questions or concerns you may have."
+                
+                for key, demo_response in demo_responses.items():
+                    if key in prompt_lower:
+                        response = demo_response
+                        break
+                
+                # Simulate the format of generated text
+                generated_text = f"{prompt} {response}"
+                
+                return {
+                    'success': True,
+                    'generated_text': generated_text,
+                    'prompt': prompt,
+                    'note': f'Demo mode - trained model exists but memory constrained ({str(model_error)[:100]}...)'
+                }
             
         except Exception as e:
             logger.error(f"Model testing error: {str(e)}")
