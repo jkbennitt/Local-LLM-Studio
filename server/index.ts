@@ -37,16 +37,24 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  // Start bulletproof Python service monitor
+  // Start bulletproof Python service monitor (non-blocking)
   try {
     const { pythonServiceMonitor } = await import('./python_service_monitor');
     log('🐍 Starting Python ML service monitor...');
-    const serviceStarted = await pythonServiceMonitor.startService();
-    if (serviceStarted) {
-      log('✅ Python ML service started successfully with health monitoring');
-    } else {
-      log('⚠️  Python ML service failed to start, continuing without ML capabilities');
-    }
+    
+    // Start the service in the background
+    pythonServiceMonitor.startService().then((serviceStarted) => {
+      if (serviceStarted) {
+        log('✅ Python ML service started successfully with health monitoring');
+      } else {
+        log('⚠️  Python ML service failed to start, continuing without ML capabilities');
+      }
+    }).catch((error) => {
+      log('⚠️  Python service startup error:', error.message);
+    });
+    
+    // Don't wait for Python service to start before continuing with server startup
+    log('🚀 Python service initialization in progress, continuing with server startup...');
   } catch (error) {
     log('⚠️  Python service monitor not available');
     if (error instanceof Error) {
