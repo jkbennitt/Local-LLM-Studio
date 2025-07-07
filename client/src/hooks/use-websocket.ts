@@ -17,7 +17,7 @@ export function useWebSocket(onMessage?: (message: WebSocketMessage) => void) {
   const isManualDisconnect = useRef(false);
 
   const maxReconnectAttempts = 10;
-  const heartbeatInterval = 30000; // 30 seconds
+  const heartbeatInterval = 60000; // 60 seconds to match server
 
   const clearTimers = useCallback(() => {
     if (reconnectTimer.current) {
