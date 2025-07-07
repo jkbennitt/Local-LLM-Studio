@@ -40,10 +40,36 @@ export default function DataUpload({
       queryClient.invalidateQueries({ queryKey: ['/api/datasets'] });
       onDatasetSelect(data.id);
     },
-    onError: (error) => {
+    onError: (error: any) => {
+      console.error('Upload error:', error);
+      
+      let errorMessage = 'An unexpected error occurred';
+      let errorTitle = 'Upload failed';
+      
+      // Handle different types of errors
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      // Provide helpful suggestions based on error type
+      if (errorMessage.includes('file type') || errorMessage.includes('Invalid file')) {
+        errorTitle = 'Invalid file type';
+        errorMessage += ' Please ensure you upload CSV, JSON, or TXT files only.';
+      } else if (errorMessage.includes('too large') || errorMessage.includes('size')) {
+        errorTitle = 'File too large';
+        errorMessage += ' Please use files smaller than 50MB.';
+      } else if (errorMessage.includes('No file')) {
+        errorTitle = 'No file selected';
+        errorMessage = 'Please select a file to upload.';
+      }
+      
       toast({
-        title: "Upload failed",
-        description: error.message,
+        title: errorTitle,
+        description: errorMessage,
         variant: "destructive",
       });
     },
@@ -77,22 +103,34 @@ export default function DataUpload({
   };
 
   const handleFileUpload = async (file: File) => {
+    console.log('Uploading file:', file.name, 'Size:', file.size);
+    
     const allowedTypes = ['.csv', '.json', '.txt'];
     const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
     
     if (!allowedTypes.includes(fileExtension)) {
       toast({
         title: "Invalid file type",
-        description: "Please upload CSV, JSON, or TXT files only.",
+        description: `File type "${fileExtension}" is not supported. Please upload CSV, JSON, or TXT files only.`,
         variant: "destructive",
       });
       return;
     }
 
     if (file.size > 50 * 1024 * 1024) { // 50MB limit
+      const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
       toast({
         title: "File too large",
-        description: "Please upload files smaller than 50MB.",
+        description: `File size (${sizeMB}MB) exceeds the 50MB limit. Please use a smaller file.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (file.size === 0) {
+      toast({
+        title: "Empty file",
+        description: "The selected file is empty. Please choose a file with data.",
         variant: "destructive",
       });
       return;

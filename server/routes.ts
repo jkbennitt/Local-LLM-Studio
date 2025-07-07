@@ -135,27 +135,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Upload dataset with advanced validation
   app.post('/api/datasets', upload.single('file'), asyncHandler(async (req: any, res: any) => {
+    console.log('Upload request received:', req.file ? 'File present' : 'No file');
+    
     if (!req.file) {
-      throw ErrorFactory.datasetInvalidFormat('No file', ['.csv', '.json', '.txt']);
+      return res.status(400).json({ 
+        error: 'No file uploaded',
+        message: 'Please select a file to upload' 
+      });
     }
 
     const { originalname, filename, size, mimetype } = req.file;
     const fileExtension = path.extname(originalname).toLowerCase();
     
+    console.log(`Processing file: ${originalname}, size: ${size}, type: ${fileExtension}`);
+    
     // Validate file type
     const allowedTypes = ['.csv', '.json', '.txt'];
     if (!allowedTypes.includes(fileExtension)) {
       // Clean up uploaded file
-      fs.unlinkSync(path.join('uploads', filename));
-      throw ErrorFactory.datasetInvalidFormat(originalname, allowedTypes);
+      try {
+        fs.unlinkSync(path.join('uploads', filename));
+      } catch (cleanupError) {
+        console.warn('Failed to cleanup file:', cleanupError);
+      }
+      return res.status(400).json({
+        error: 'Invalid file type',
+        message: `File type ${fileExtension} is not supported. Please upload CSV, JSON, or TXT files.`,
+        allowedTypes
+      });
     }
 
     // Check file size (50MB limit)
     const maxSizeMB = 50;
     const sizeMB = size / (1024 * 1024);
     if (sizeMB > maxSizeMB) {
-      fs.unlinkSync(path.join('uploads', filename));
-      throw ErrorFactory.datasetTooLarge(sizeMB, maxSizeMB);
+      try {
+        fs.unlinkSync(path.join('uploads', filename));
+      } catch (cleanupError) {
+        console.warn('Failed to cleanup file:', cleanupError);
+      }
+      return res.status(400).json({
+        error: 'File too large',
+        message: `File size (${sizeMB.toFixed(2)}MB) exceeds the 50MB limit.`
+      });
     }
 
     // Count samples and validate quality
@@ -167,15 +189,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (fileExtension === '.csv') {
         const content = fs.readFileSync(filePath, 'utf8');
         const lines = content.split('\n').filter(line => line.trim());
-        sampleCount = lines.length - 1; // Subtract header
+        sampleCount = Math.max(0, lines.length - 1); // Subtract header
         
         if (sampleCount < 10) {
           validationIssues.push('too_small');
         }
       } else if (fileExtension === '.json') {
         const content = fs.readFileSync(filePath, 'utf8');
-        const data = JSON.parse(content);
-        sampleCount = Array.isArray(data) ? data.length : 1;
+        try {
+          const data = JSON.parse(content);
+          sampleCount = Array.isArray(data) ? data.length : 1;
+        } catch (jsonError) {
+          throw new Error('Invalid JSON format');
+        }
         
         if (sampleCount < 10) {
           validationIssues.push('too_small');
@@ -190,17 +216,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
     } catch (error) {
-      fs.unlinkSync(filePath);
-      throw new CustomError('Failed to parse dataset file', 1005, 400, true, { error: (error as Error).message });
+      try {
+        fs.unlinkSync(filePath);
+      } catch (cleanupError) {
+        console.warn('Failed to cleanup file:', cleanupError);
+      }
+      
+      return res.status(400).json({
+        error: 'Failed to parse dataset file',
+        message: `Error reading file: ${(error as Error).message}`,
+        details: 'Please check that your file is properly formatted and not corrupted.'
+      });
     }
 
-    // Validate dataset quality with Python service
-    const validationResult = await callMLService('validate', {
-      dataset_path: filePath
-    });
+    // Try to validate dataset quality with Python service, but don't fail if service is unavailable
+    let validationResult: any = {};
+    try {
+      validationResult = await callMLService('validate', {
+        dataset_path: filePath
+      });
 
-    if (validationResult.warnings) {
-      validationIssues.push(...validationResult.warnings);
+      if (validationResult.warnings) {
+        validationIssues.push(...validationResult.warnings);
+      }
+    } catch (pythonError) {
+      console.warn('Python validation service unavailable:', pythonError);
+      // Continue without Python validation
     }
 
     const dataset = await storage.createDataset({
