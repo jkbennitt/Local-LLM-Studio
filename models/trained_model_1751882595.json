@@ -1,0 +1,1 @@
+{"model_type": "simulated", "dataset_path": "uploads/2f67b14b79bf8f4ee162a71da0337ad8", "config": {"model_name": "distilbert-base-uncased", "learning_rate": 2e-05, "batch_size": 16, "max_epochs": 3, "temperature": 0.5, "max_length": 256, "expected_accuracy": "90-95%", "num_workers": 0, "pin_memory": false, "persistent_workers": false}, "trained_at": 1751882595.1265569}
