@@ -20,6 +20,7 @@ export default function Testing({ models, currentJob, onBack }: TestingProps) {
   const [prompt, setPrompt] = useState("");
   const [response, setResponse] = useState("");
   const [selectedModel, setSelectedModel] = useState<number | null>(null);
+  const [testResult, setTestResult] = useState<any>(null);
   const { toast } = useToast();
 
   // Get the model for the current job
@@ -30,6 +31,7 @@ export default function Testing({ models, currentJob, onBack }: TestingProps) {
       testModel(modelId, prompt),
     onSuccess: (data) => {
       setResponse(data.response);
+      setTestResult(data);
       toast({
         title: "Model tested successfully",
         description: "Your model has generated a response.",
