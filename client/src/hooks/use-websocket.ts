@@ -122,7 +122,7 @@ export function useWebSocket(onMessage?: (message: WebSocketMessage) => void) {
         setStatus('disconnected');
         console.log('SSE disconnected');
 
-        // Only attempt to reconnect if not manually disconnected
+        // More conservative reconnection strategy
         if (!isManualDisconnect.current && reconnectAttempts < maxReconnectAttempts) {
           setStatus('reconnecting');
           const delay = calculateBackoffDelay(reconnectAttempts);
@@ -189,18 +189,21 @@ export function useWebSocket(onMessage?: (message: WebSocketMessage) => void) {
     };
   }, [connect, clearTimers]);
 
-  // Reconnect when tab becomes visible
+  // Reconnect when tab becomes visible (less aggressive)
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (!document.hidden && status === 'disconnected' && !isManualDisconnect.current) {
-        console.log('Tab became visible, attempting to reconnect WebSocket');
-        forceReconnect();
+      // Only reconnect if tab is visible, status is disconnected, and it's been a while
+      if (!document.hidden && status === 'disconnected' && !isManualDisconnect.current && reconnectAttempts < 3) {
+        console.log('Tab became visible, attempting to reconnect SSE');
+        setTimeout(() => {
+          forceReconnect();
+        }, 2000); // Wait 2 seconds before reconnecting
       }
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [status, forceReconnect]);
+  }, [status, forceReconnect, reconnectAttempts]);
 
   // Reconnect when network comes back online
   useEffect(() => {

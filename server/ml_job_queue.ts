@@ -234,12 +234,21 @@ export class MLJobQueueManager extends EventEmitter {
     }, 10 * 60 * 1000); // 10 minute timeout for demo
   }
 
-  getMetrics() {
+  async getMetrics() {
+    // Get completed jobs from storage
+    const { storage } = await import('./storage');
+    const allJobs = await storage.getTrainingJobs();
+    const completedJobs = allJobs.filter(job => job.status === 'completed').length;
+    const failedJobs = allJobs.filter(job => job.status === 'failed').length;
+    
     return {
       queueLength: this.queue.length,
       activeJobs: this.activeJobs.size,
-      completedJobs: 0, // Would track from storage
-      maxConcurrentJobs: this.maxConcurrentJobs
+      completedJobs,
+      failedJobs,
+      maxConcurrentJobs: this.maxConcurrentJobs,
+      totalJobs: allJobs.length,
+      successRate: allJobs.length > 0 ? Math.round((completedJobs / allJobs.length) * 100) : 0
     };
   }
 

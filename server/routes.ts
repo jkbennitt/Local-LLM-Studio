@@ -39,35 +39,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/training/stream', (req, res) => {
     const clientId = Math.random().toString(36).substr(2, 9);
     
+    // More aggressive headers for connection stability
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Headers', 'Cache-Control');
+    res.setHeader('X-Accel-Buffering', 'no'); // Disable proxy buffering
     
     sseClients.set(clientId, res);
     console.log(`SSE client connected: ${clientId}`);
     
     // Send initial connection message
-    res.write(`data: ${JSON.stringify({
-      type: 'connection',
-      status: 'connected',
-      clientId: clientId,
-      timestamp: Date.now()
-    })}\n\n`);
+    try {
+      res.write(`data: ${JSON.stringify({
+        type: 'connection',
+        status: 'connected',
+        clientId: clientId,
+        timestamp: Date.now()
+      })}\n\n`);
+    } catch (error) {
+      console.error(`Failed to send initial message to ${clientId}:`, error);
+      sseClients.delete(clientId);
+      return;
+    }
     
-    // Keep connection alive
+    // Keep connection alive with more frequent pings
     const keepAlive = setInterval(() => {
-      if (!res.destroyed) {
-        res.write(`data: ${JSON.stringify({ type: 'ping', timestamp: Date.now() })}\n\n`);
+      if (!res.destroyed && sseClients.has(clientId)) {
+        try {
+          res.write(`data: ${JSON.stringify({ type: 'ping', timestamp: Date.now() })}\n\n`);
+        } catch (error) {
+          console.error(`Ping failed for ${clientId}:`, error);
+          clearInterval(keepAlive);
+          sseClients.delete(clientId);
+        }
       } else {
         clearInterval(keepAlive);
         sseClients.delete(clientId);
       }
-    }, 30000);
+    }, 15000); // Reduced to 15 seconds for better stability
     
     req.on('close', () => {
       console.log(`SSE client disconnected: ${clientId}`);
+      clearInterval(keepAlive);
+      sseClients.delete(clientId);
+    });
+
+    req.on('error', (error) => {
+      console.error(`SSE client error for ${clientId}:`, error);
       clearInterval(keepAlive);
       sseClients.delete(clientId);
     });
@@ -676,7 +696,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Job queue status
   app.get('/api/jobs/metrics', asyncHandler(async (req: any, res: any) => {
-    const metrics = jobQueueManager.getMetrics();
+    const metrics = await jobQueueManager.getMetrics();
     res.json(metrics);
   }));
   
