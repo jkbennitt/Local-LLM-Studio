@@ -38,6 +38,7 @@ export interface IStorage {
   getDataset(id: number): Promise<Dataset | undefined>;
   createDataset(dataset: InsertDataset): Promise<Dataset>;
   updateDataset(id: number, updates: Partial<Dataset>): Promise<Dataset>;
+  deleteDataset(id: number): Promise<boolean>;
   
   // Trained Models
   getTrainedModels(userId?: number): Promise<TrainedModel[]>;
@@ -309,6 +310,14 @@ export class MemStorage implements IStorage {
     const updatedDataset = { ...dataset, ...updates };
     this.datasets.set(id, updatedDataset);
     return updatedDataset;
+  }
+
+  async deleteDataset(id: number): Promise<boolean> {
+    return this.datasets.delete(id);
+  }
+
+  async deleteDataset(id: number): Promise<boolean> {
+    return this.datasets.delete(id);
   }
 
   // Trained Models

@@ -1,12 +1,12 @@
 import { useState, useCallback } from "react";
-import { Upload, File, FileText, Table, X, Info, HelpCircle } from "lucide-react";
+import { Upload, File, FileText, Table, X, Info, HelpCircle, Trash2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { uploadDataset } from "@/lib/api";
+import { uploadDataset, deleteDataset } from "@/lib/api";
 import { Dataset } from "@/types";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
@@ -70,6 +70,24 @@ export default function DataUpload({
       toast({
         title: errorTitle,
         description: errorMessage,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: deleteDataset,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/datasets'] });
+      toast({
+        title: "Dataset deleted",
+        description: "Dataset has been permanently removed.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Delete failed", 
+        description: error.message || "Failed to delete dataset",
         variant: "destructive",
       });
     },
@@ -312,11 +330,25 @@ export default function DataUpload({
                           )}
                         </div>
                       </div>
-                      {isSelected && (
-                        <div className="w-5 h-5 bg-primary rounded-full flex items-center justify-center">
-                          <div className="w-2 h-2 bg-white rounded-full" />
-                        </div>
-                      )}
+                      <div className="flex items-center space-x-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteMutation.mutate(dataset.id);
+                          }}
+                          disabled={deleteMutation.isPending}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                        {isSelected && (
+                          <div className="w-5 h-5 bg-primary rounded-full flex items-center justify-center">
+                            <div className="w-2 h-2 bg-white rounded-full" />
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 );
