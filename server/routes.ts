@@ -375,14 +375,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: 'Model not found' });
       }
 
-      // Call Python ML service for inference
-      const result = await callMLService('inference', {
+      // Call Python ML service for model testing
+      const result = await callMLService('test_model', {
         model_path: model.modelPath,
         prompt,
-        max_length: 100
+        max_length: 100,
+        temperature: 0.7
       });
 
-      res.json({ response: result.response });
+      if (result && result.success) {
+        res.json({ 
+          response: result.generated_text,
+          prompt: result.prompt,
+          note: result.note 
+        });
+      } else {
+        res.status(500).json({ 
+          error: result?.error || 'Model testing failed',
+          details: result
+        });
+      }
     } catch (error) {
       console.error('Model testing error:', error);
       res.status(500).json({ error: 'Failed to test model' });
