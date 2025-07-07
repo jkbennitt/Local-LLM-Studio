@@ -32,97 +32,44 @@ const wsConnections = new Map<string, WebSocket>();
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
 
-  // WebSocket setup for real-time training updates
-  const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
+  // Server-Sent Events for training updates (more stable than WebSocket)
+  const sseClients = new Map<string, Response>();
   
-  wss.on('connection', (ws: WebSocket) => {
-    const connectionId = Math.random().toString(36).substr(2, 9);
-    wsConnections.set(connectionId, ws);
+  // SSE endpoint for training updates
+  app.get('/api/training/stream', (req, res) => {
+    const clientId = Math.random().toString(36).substr(2, 9);
     
-    console.log(`WebSocket connected: ${connectionId}`);
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Headers', 'Cache-Control');
     
-    // Set up heartbeat for connection stability (simplified)
-    let heartbeatInterval: NodeJS.Timeout;
-    let isAlive = true;
+    sseClients.set(clientId, res);
+    console.log(`SSE client connected: ${clientId}`);
     
-    const startHeartbeat = () => {
-      // Wait longer before starting heartbeat to allow connection to stabilize
-      setTimeout(() => {
-        if (ws.readyState === WebSocket.OPEN) {
-          heartbeatInterval = setInterval(() => {
-            if (ws.readyState === WebSocket.OPEN) {
-              try {
-                ws.send(JSON.stringify({
-                  type: 'heartbeat',
-                  timestamp: Date.now()
-                }));
-              } catch (error) {
-                console.error('Failed to send heartbeat:', error);
-                clearInterval(heartbeatInterval);
-                wsConnections.delete(connectionId);
-              }
-            }
-          }, 60000); // 60 second heartbeat (less aggressive)
-        }
-      }, 10000); // Wait 10 seconds before starting heartbeat
-    };
+    // Send initial connection message
+    res.write(`data: ${JSON.stringify({
+      type: 'connection',
+      status: 'connected',
+      clientId: clientId,
+      timestamp: Date.now()
+    })}\n\n`);
     
-    const cleanup = () => {
-      if (heartbeatInterval) {
-        clearInterval(heartbeatInterval);
+    // Keep connection alive
+    const keepAlive = setInterval(() => {
+      if (!res.destroyed) {
+        res.write(`data: ${JSON.stringify({ type: 'ping', timestamp: Date.now() })}\n\n`);
+      } else {
+        clearInterval(keepAlive);
+        sseClients.delete(clientId);
       }
-      wsConnections.delete(connectionId);
-    };
+    }, 30000);
     
-    // Send initial connection success message
-    try {
-      ws.send(JSON.stringify({
-        type: 'connection',
-        status: 'connected',
-        connectionId: connectionId,
-        timestamp: Date.now()
-      }));
-    } catch (error) {
-      console.error('Failed to send connection message:', error);
-    }
-    
-    startHeartbeat();
-    
-    ws.on('message', (message: string) => {
-      try {
-        const data = JSON.parse(message);
-        
-        if (data.type === 'subscribe' && data.jobId) {
-          (ws as any).jobId = data.jobId;
-        } else if (data.type === 'heartbeat') {
-          // Mark connection as alive and respond to heartbeat
-          isAlive = true;
-          if (ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({
-              type: 'heartbeat',
-              timestamp: Date.now(),
-              originalTimestamp: data.timestamp
-            }));
-          }
-        } else if (data.type === 'pong') {
-          // Mark connection as alive for pong messages
-          isAlive = true;
-        }
-      } catch (error) {
-        console.error('WebSocket message error:', error);
-        handleWebSocketError(ws, error as Error);
-      }
-    });
-    
-    ws.on('error', (error: Error) => {
-      console.error('WebSocket connection error:', error);
-      handleWebSocketError(ws, error);
-      cleanup();
-    });
-    
-    ws.on('close', (code: number, reason: string) => {
-      console.log(`WebSocket connection closed: ${code} - ${reason}`);
-      cleanup();
+    req.on('close', () => {
+      console.log(`SSE client disconnected: ${clientId}`);
+      clearInterval(keepAlive);
+      sseClients.delete(clientId);
     });
   });
 
@@ -521,29 +468,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   }
 
-  // WebSocket broadcast function
+  // SSE broadcast function
   function broadcastTrainingUpdate(job: any) {
     const message = JSON.stringify({
       type: 'training_update',
       job
     });
 
-    wsConnections.forEach((ws, connectionId) => {
-      if (ws.readyState === WebSocket.OPEN) {
-        // Send to all connections or specific job subscribers
-        if (!(ws as any).jobId || (ws as any).jobId === job.id) {
-          ws.send(message);
+    sseClients.forEach((res, clientId) => {
+      if (!res.destroyed) {
+        try {
+          res.write(`data: ${message}\n\n`);
+        } catch (error) {
+          console.error(`Failed to send SSE message to ${clientId}:`, error);
+          sseClients.delete(clientId);
         }
       } else {
-        wsConnections.delete(connectionId);
+        sseClients.delete(clientId);
       }
     });
   }
 
-  // Call Python ML service with advanced error handling
+  // Call Python ML service with simplified communication
   async function callMLService(operation: string, data: any): Promise<any> {
     return new Promise((resolve, reject) => {
-      const pythonProcess = spawn('python', ['server/ml_service.py', operation, JSON.stringify(data)]);
+      const pythonScript = 'server/ml_service_simple.py';
+      const pythonProcess = spawn('python3', [pythonScript]);
       
       let stdout = '';
       let stderr = '';
@@ -569,12 +519,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
         reject(ErrorFactory.pythonServiceUnavailable());
       });
 
+      // Send the request data to the Python service via stdin
+      const requestData = JSON.stringify({ action: operation, ...data }) + '\n';
+      pythonProcess.stdin.write(requestData);
+      pythonProcess.stdin.end();
+
       pythonProcess.on('close', (code) => {
         clearTimeout(timeout);
         if (code === 0) {
           try {
-            const result = JSON.parse(stdout);
-            resolve(result);
+            // Parse the last valid JSON line of stdout as the result
+            const lines = stdout.trim().split('\n');
+            let result = null;
+            
+            // Find the last valid JSON line
+            for (let i = lines.length - 1; i >= 0; i--) {
+              try {
+                if (lines[i].trim().startsWith('{') || lines[i].trim().startsWith('[')) {
+                  result = JSON.parse(lines[i].trim());
+                  break;
+                }
+              } catch (e) {
+                continue;
+              }
+            }
+            
+            if (!result) {
+              reject(new CustomError('No valid JSON response found', 5000, 500, true, { stdout, stderr }));
+            } else if (result.error) {
+              reject(new CustomError(result.error, 5000, 500, true, { stdout, stderr }));
+            } else {
+              resolve(result);
+            }
           } catch (error) {
             reject(new CustomError('Failed to parse ML service response', 5000, 500, true, { stdout, stderr }));
           }

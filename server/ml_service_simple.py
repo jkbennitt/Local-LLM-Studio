@@ -25,8 +25,10 @@ def validate_dataset(data):
         elif dataset_path.endswith('.txt'):
             try:
                 with open(dataset_path, 'r') as f:
-                    lines = f.readlines()
-                sample_count = len([l for l in lines if l.strip()])
+                    content = f.read()
+                # Count lines with | separator (question|answer format)
+                lines = [l.strip() for l in content.split('\n') if '|' in l.strip()]
+                sample_count = len(lines)
             except:
                 return {"error": "Failed to read text file"}
         else:
@@ -50,13 +52,12 @@ def train_model(data):
         config = data.get('config', {})
         dataset_path = data['dataset_path']
         
-        # Simulate training process
-        print(json.dumps({"type": "training_progress", "progress": 0, "status": "Starting training..."}))
-        
+        # Send training progress updates directly to stdout as JSON
         for i in range(1, 11):
-            time.sleep(0.5)  # Simulate training time
+            time.sleep(0.3)  # Simulate training time
             loss = 2.5 - (i * 0.2) + random.uniform(-0.1, 0.1)
             
+            # Send progress update as separate JSON line
             progress_data = {
                 "type": "training_progress",
                 "progress": i * 10,
@@ -64,7 +65,8 @@ def train_model(data):
                 "loss": round(loss, 4),
                 "status": f"Training epoch {i}/10"
             }
-            print(json.dumps(progress_data))
+            sys.stdout.write(json.dumps(progress_data) + '\n')
+            sys.stdout.flush()
         
         # Simulate model saving
         model_path = f"./models/trained_model_{int(time.time())}.json"
@@ -83,7 +85,7 @@ def train_model(data):
             "model_path": model_path,
             "final_loss": round(loss, 4),
             "epochs_completed": 10,
-            "training_time": 5.0
+            "training_time": 3.0
         }
     except Exception as e:
         return {"error": str(e)}
@@ -136,11 +138,11 @@ def main():
                 data = json.loads(line.strip())
                 action = data.get('action')
                 
-                if action == 'validate_dataset':
+                if action == 'validate_dataset' or action == 'validate':
                     result = validate_dataset(data)
-                elif action == 'train_model':
+                elif action == 'train_model' or action == 'train':
                     result = train_model(data)
-                elif action == 'test_model':
+                elif action == 'test_model' or action == 'test':
                     result = test_model(data)
                 elif action == 'get_system_info':
                     result = get_system_info()
