@@ -102,13 +102,20 @@ export class MLJobQueueManager extends EventEmitter {
       job_id: job.id
     };
 
-    const pythonProcess = spawn('python', [
-      'server/ml_service.py',
-      'train',
-      JSON.stringify(trainingData)
-    ], {
+    const pythonProcess = spawn('python3', ['server/ml_service_simple.py'], {
       stdio: ['pipe', 'pipe', 'pipe']
     });
+
+    // Send training request via stdin using the correct format
+    const requestData = JSON.stringify({
+      action: 'train_model',
+      dataset_path: job.datasetPath,
+      config: job.config,
+      job_id: job.id
+    }) + '\n';
+    
+    pythonProcess.stdin.write(requestData);
+    pythonProcess.stdin.end();
 
     job.process = pythonProcess;
 
@@ -118,20 +125,25 @@ export class MLJobQueueManager extends EventEmitter {
     pythonProcess.stdout.on('data', (data) => {
       stdout += data.toString();
 
-      // Parse progress updates (if any)
+      // Parse JSON progress updates from the simplified service
       const lines = data.toString().split('\n');
       for (const line of lines) {
-        if (line.includes('PROGRESS:')) {
+        if (line.trim().startsWith('{')) {
           try {
-            const progress = parseInt(line.split('PROGRESS:')[1]);
-            this.emit('job:progress', {
-              jobId: job.id,
-              progress,
-              epoch: Math.floor(progress / 10),
-              loss: 0.5 - (progress / 200) // Mock decreasing loss
-            });
+            const progressData = JSON.parse(line.trim());
+            
+            if (progressData.type === 'training_progress') {
+              this.emit('job:progress', {
+                jobId: job.id,
+                progress: progressData.progress,
+                epoch: progressData.epoch,
+                loss: progressData.loss
+              });
+            } else if (progressData.type === 'status') {
+              console.log(`Job ${job.id}: ${progressData.message}`);
+            }
           } catch (e) {
-            // Ignore parsing errors
+            // Ignore JSON parsing errors for non-JSON lines
           }
         }
       }
@@ -147,8 +159,25 @@ export class MLJobQueueManager extends EventEmitter {
 
       if (code === 0) {
         try {
-          const result = JSON.parse(stdout);
-          if (result.success) {
+          // Parse the last valid JSON line as the final result
+          const lines = stdout.trim().split('\n');
+          let result = null;
+          
+          for (let i = lines.length - 1; i >= 0; i--) {
+            try {
+              if (lines[i].trim().startsWith('{') || lines[i].trim().startsWith('[')) {
+                const parsed = JSON.parse(lines[i].trim());
+                if (parsed.type === 'completion' || parsed.success) {
+                  result = parsed;
+                  break;
+                }
+              }
+            } catch (e) {
+              continue;
+            }
+          }
+          
+          if (result && result.success) {
             await storage.updateTrainingJob(job.id, {
               status: 'completed',
               progress: 100,
