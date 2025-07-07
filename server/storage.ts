@@ -61,6 +61,7 @@ export class MemStorage implements IStorage {
 
   constructor() {
     this.initializeDefaultTemplates();
+    this.restoreUploadsFromFilesystem();
   }
 
   private initializeDefaultTemplates() {
@@ -125,6 +126,79 @@ export class MemStorage implements IStorage {
     });
 
     this.currentTemplateId = 4;
+  }
+
+  private restoreUploadsFromFilesystem() {
+    setTimeout(async () => {
+      try {
+        const fs = await import('fs');
+        const path = await import('path');
+        
+        const uploadsDir = 'uploads';
+        if (!fs.existsSync(uploadsDir)) {
+          return;
+        }
+        
+        const files = fs.readdirSync(uploadsDir);
+        console.log(`Found ${files.length} uploaded files to restore`);
+        
+        for (const file of files) {
+          const filePath = path.join(uploadsDir, file);
+          const stats = fs.statSync(filePath);
+          
+          // Determine file type and original name
+          let originalName = `restored_${file}`;
+          let fileType = '.txt';
+          
+          // Try to detect file type by reading content
+          try {
+            const content = fs.readFileSync(filePath, 'utf8');
+            if (content.includes('|') && content.split('\n').length > 5) {
+              fileType = '.txt';
+              originalName = `training_data_${Date.now()}.txt`;
+            } else if (content.includes(',')) {
+              fileType = '.csv';
+              originalName = `training_data_${Date.now()}.csv`;
+            }
+          } catch (e) {
+            fileType = '.txt';
+            originalName = `training_data_${Date.now()}.txt`;
+          }
+          
+          // Count samples
+          let sampleCount = 0;
+          try {
+            const content = fs.readFileSync(filePath, 'utf8');
+            if (fileType === '.txt') {
+              sampleCount = content.split('\n').filter(line => line.trim() && line.includes('|')).length;
+            } else if (fileType === '.csv') {
+              sampleCount = Math.max(0, content.split('\n').length - 1);
+            }
+          } catch (e) {
+            sampleCount = 1; // Default to 1 if can't read
+          }
+          
+          const dataset = {
+            id: this.currentDatasetId++,
+            userId: 1,
+            name: originalName,
+            filename: originalName,
+            filePath: filePath,
+            fileSize: stats.size,
+            fileType: fileType,
+            sampleCount: sampleCount,
+            preprocessed: false,
+            createdAt: stats.birthtime || stats.mtime
+          };
+          
+          this.datasets.set(dataset.id, dataset);
+        }
+        
+        console.log(`✅ Restored ${this.datasets.size} datasets from uploads folder`);
+      } catch (error) {
+        console.error('Failed to restore uploads:', error);
+      }
+    }, 100); // Small delay to ensure constructor completes
   }
 
   // Users
