@@ -38,27 +38,10 @@ export function useWebSocket(onMessage?: (message: WebSocketMessage) => void) {
   }, []);
 
   const startHeartbeat = useCallback(() => {
-    if (heartbeatTimer.current) {
-      clearInterval(heartbeatTimer.current);
-    }
-
-    heartbeatTimer.current = setInterval(() => {
-      if (wsRef.current?.readyState === WebSocket.OPEN) {
-        const now = Date.now();
-        lastHeartbeat.current = now;
-
-        try {
-          wsRef.current.send(JSON.stringify({
-            type: 'heartbeat',
-            timestamp: now
-          }));
-        } catch (error) {
-          console.error('Failed to send heartbeat:', error);
-          setConnectionQuality('poor');
-        }
-      }
-    }, heartbeatInterval);
-  }, [heartbeatInterval]);
+    // Disable heartbeat entirely to prevent connection issues
+    // WebSocket connections will rely on browser's built-in keep-alive
+    console.log('Heartbeat disabled for connection stability');
+  }, []);
 
   const processMessageQueue = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN && messageQueue.current.length > 0) {
@@ -77,60 +60,51 @@ export function useWebSocket(onMessage?: (message: WebSocketMessage) => void) {
   }, []);
 
   const connect = useCallback(() => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
+    if (wsRef.current?.readyState === 1) { // OPEN state for EventSource
       return;
     }
 
     // Clean up existing connection
     if (wsRef.current) {
-      wsRef.current.close();
+      (wsRef.current as EventSource).close();
     }
 
     setStatus('connecting');
 
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const wsUrl = `${protocol}//${window.location.host}/ws`;
+    const sseUrl = `${window.location.origin}/api/training/stream`;
 
     try {
-      const ws = new WebSocket(wsUrl);
-      wsRef.current = ws;
+      const eventSource = new EventSource(sseUrl);
+      wsRef.current = eventSource as any;
 
-      ws.onopen = () => {
+      eventSource.onopen = () => {
         setStatus('connected');
         setReconnectAttempts(0);
         setConnectionQuality('good');
-        console.log('WebSocket connected');
+        console.log('SSE connected');
 
         try {
-          startHeartbeat();
           processMessageQueue();
         } catch (error) {
-          console.error('Error in WebSocket onopen:', error);
+          console.error('Error in SSE onopen:', error);
           setStatus('error');
         }
       };
 
-      ws.onmessage = (event) => {
+      eventSource.onmessage = (event) => {
         try {
           const message = JSON.parse(event.data);
 
           // Handle connection confirmation
           if (message.type === 'connection') {
-            console.log('WebSocket connection confirmed:', message);
+            console.log('SSE connection confirmed:', message);
             setConnectionQuality('good');
             return;
           }
 
-          // Handle heartbeat responses
-          if (message.type === 'heartbeat') {
-            const now = Date.now();
-            const latency = now - lastHeartbeat.current;
-
-            if (latency > 5000) {
-              setConnectionQuality('poor');
-            } else {
-              setConnectionQuality('good');
-            }
+          // Handle ping responses
+          if (message.type === 'ping') {
+            setConnectionQuality('good');
             return;
           }
 
@@ -139,14 +113,14 @@ export function useWebSocket(onMessage?: (message: WebSocketMessage) => void) {
             onMessage(message);
           }
         } catch (error) {
-          console.error('Error parsing WebSocket message:', error);
+          console.error('Error parsing SSE message:', error);
         }
       };
 
-      ws.onclose = (event) => {
+      eventSource.onerror = (error) => {
         clearTimers();
         setStatus('disconnected');
-        console.log('WebSocket disconnected:', event.code, event.reason);
+        console.log('SSE disconnected');
 
         // Only attempt to reconnect if not manually disconnected
         if (!isManualDisconnect.current && reconnectAttempts < maxReconnectAttempts) {
@@ -164,27 +138,18 @@ export function useWebSocket(onMessage?: (message: WebSocketMessage) => void) {
           setStatus('error');
         }
       };
-
-      ws.onerror = (error) => {
-        setStatus('error');
-        setConnectionQuality('poor');
-        console.error('WebSocket error:', error);
-        
-        // Clear timers to prevent memory leaks
-        clearTimers();
-      };
     } catch (error) {
-      console.error('Failed to create WebSocket:', error);
+      console.error('Failed to create SSE connection:', error);
       setStatus('error');
     }
-  }, [reconnectAttempts, maxReconnectAttempts, calculateBackoffDelay, startHeartbeat, processMessageQueue, onMessage, clearTimers]);
+  }, [reconnectAttempts, maxReconnectAttempts, calculateBackoffDelay, processMessageQueue, onMessage, clearTimers]);
 
   const disconnect = useCallback(() => {
     isManualDisconnect.current = true;
     clearTimers();
 
     if (wsRef.current) {
-      wsRef.current.close(1000, 'Manual disconnect');
+      (wsRef.current as EventSource).close();
       wsRef.current = null;
     }
 
@@ -194,23 +159,11 @@ export function useWebSocket(onMessage?: (message: WebSocketMessage) => void) {
   }, [clearTimers]);
 
   const sendMessage = useCallback((message: any) => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      try {
-        wsRef.current.send(JSON.stringify(message));
-      } catch (error) {
-        console.error('Failed to send message:', error);
-        messageQueue.current.push(message);
-      }
-    } else {
-      console.warn('WebSocket is not connected, queuing message');
-      messageQueue.current.push(message);
-
-      // Attempt to reconnect if not already trying
-      if (status === 'disconnected' && !isManualDisconnect.current) {
-        connect();
-      }
-    }
-  }, [status, connect]);
+    // For SSE, we don't send messages from client to server
+    // SSE is unidirectional (server to client only)
+    console.log('SSE message (not sent):', message);
+    // For job subscription, we could use a separate HTTP endpoint if needed
+  }, []);
 
   const subscribeToJob = useCallback((jobId: number) => {
     sendMessage({ type: 'subscribe', jobId });
@@ -230,7 +183,7 @@ export function useWebSocket(onMessage?: (message: WebSocketMessage) => void) {
       isManualDisconnect.current = true;
       clearTimers();
       if (wsRef.current) {
-        wsRef.current.close();
+        (wsRef.current as EventSource).close();
         wsRef.current = null;
       }
     };
