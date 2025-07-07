@@ -30,6 +30,18 @@ export async function stopTraining(jobId: number): Promise<any> {
   return response.json();
 }
 
+export async function deleteDataset(id: number): Promise<any> {
+  const response = await fetch(`/api/datasets/${id}`, {
+    method: 'DELETE',
+  });
+  
+  if (!response.ok) {
+    throw new Error('Failed to delete dataset');
+  }
+  
+  return response.json();
+}
+
 export async function testModel(modelId: number, prompt: string): Promise<any> {
   const response = await apiRequest('POST', `/api/models/${modelId}/test`, { prompt });
   return response.json();

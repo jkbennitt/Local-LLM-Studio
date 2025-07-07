@@ -47,12 +47,24 @@ def validate_dataset(data):
         return {"error": str(e)}
 
 def train_model(data):
-    """Simulate model training"""
+    """Simulate model training with only JSON output"""
     try:
         config = data.get('config', {})
         dataset_path = data['dataset_path']
+        job_id = data.get('job_id', 'unknown')
         
-        # Send training progress updates directly to stdout as JSON
+        # Send only structured JSON updates to avoid parsing errors
+        # Initial status
+        status_update = {
+            "type": "status",
+            "job_id": job_id,
+            "message": "Training initialized",
+            "status": "training"
+        }
+        print(json.dumps(status_update))
+        sys.stdout.flush()
+        
+        # Training progress updates
         for i in range(1, 11):
             time.sleep(0.3)  # Simulate training time
             loss = 2.5 - (i * 0.2) + random.uniform(-0.1, 0.1)
@@ -60,12 +72,13 @@ def train_model(data):
             # Send progress update as separate JSON line
             progress_data = {
                 "type": "training_progress",
+                "job_id": job_id,
                 "progress": i * 10,
                 "epoch": i,
                 "loss": round(loss, 4),
-                "status": f"Training epoch {i}/10"
+                "status": "training"
             }
-            sys.stdout.write(json.dumps(progress_data) + '\n')
+            print(json.dumps(progress_data))
             sys.stdout.flush()
         
         # Simulate model saving
@@ -80,15 +93,33 @@ def train_model(data):
                 "trained_at": time.time()
             }, f)
         
-        return {
+        # Final result - this will be the main return value
+        final_result = {
+            "type": "completion",
             "success": True,
+            "job_id": job_id,
             "model_path": model_path,
             "final_loss": round(loss, 4),
             "epochs_completed": 10,
-            "training_time": 3.0
+            "training_time": 3.0,
+            "status": "completed"
         }
+        
+        print(json.dumps(final_result))
+        sys.stdout.flush()
+        
+        return final_result
+        
     except Exception as e:
-        return {"error": str(e)}
+        error_result = {
+            "type": "error",
+            "job_id": job_id,
+            "error": str(e),
+            "status": "failed"
+        }
+        print(json.dumps(error_result))
+        sys.stdout.flush()
+        return error_result
 
 def test_model(data):
     """Test a trained model"""

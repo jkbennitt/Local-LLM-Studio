@@ -243,6 +243,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Delete dataset
+  app.delete('/api/datasets/:id', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const dataset = await storage.getDataset(id);
+      
+      if (!dataset) {
+        return res.status(404).json({ error: 'Dataset not found' });
+      }
+      
+      // Delete file from filesystem
+      const fs = await import('fs');
+      try {
+        if (fs.existsSync(dataset.filePath)) {
+          fs.unlinkSync(dataset.filePath);
+        }
+      } catch (fileError) {
+        console.warn('Failed to delete file:', fileError);
+      }
+      
+      // Delete from storage
+      await storage.deleteDataset(id);
+      
+      res.json({ message: 'Dataset deleted successfully' });
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to delete dataset' });
+    }
+  });
+
   // Start training job
   app.post('/api/training/start', async (req, res) => {
     try {
