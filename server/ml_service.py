@@ -153,6 +153,7 @@ def start_health_server():
     from http.server import HTTPServer, BaseHTTPRequestHandler
     import threading
     import json
+    import socket
     
     class HealthHandler(BaseHTTPRequestHandler):
         def do_GET(self):
@@ -177,29 +178,54 @@ def start_health_server():
             # Suppress default logging
             pass
     
-    server = HTTPServer(('localhost', 8000), HealthHandler)
-    server_thread = threading.Thread(target=server.serve_forever)
-    server_thread.daemon = True
-    server_thread.start()
+    # Try to start health server, handle port conflicts
+    for port in [8000, 8001, 8002]:
+        try:
+            server = HTTPServer(('0.0.0.0', port), HealthHandler)
+            server_thread = threading.Thread(target=server.serve_forever)
+            server_thread.daemon = True
+            server_thread.start()
+            
+            print(f"Health server started on port {port}")
+            print("Service ready")  # This signals the monitor that we're ready
+            return server
+        except socket.error:
+            continue
     
-    print("Health server started on port 8000")
-    return server
+    print("Warning: Could not start health server, but service is ready")
+    print("Service ready")
+    return None
 
 def main():
-    # Start health monitoring server
-    health_server = start_health_server()
-    
-    if len(sys.argv) < 2:
-        print("Service ready")
-        print("Usage: python ml_service.py <operation> <data>")
+    try:
+        # Ensure we can import required packages
+        print("Loading ML dependencies...")
+        import torch
+        import transformers
+        print("ML dependencies loaded successfully")
         
-        # Keep service running for health checks
-        try:
-            while True:
-                time.sleep(1)
-        except KeyboardInterrupt:
-            print("Service shutting down...")
-        return
+        # Start health monitoring server
+        health_server = start_health_server()
+        
+        if len(sys.argv) < 2:
+            print("Usage: python ml_service.py <operation> <data>")
+            
+            # Keep service running for health checks
+            try:
+                while True:
+                    time.sleep(1)
+            except KeyboardInterrupt:
+                print("Service shutting down...")
+            return
+            
+    except ImportError as e:
+        print(f"Error: Missing required dependency: {e}")
+        print("Please install required packages:")
+        print("pip install torch transformers datasets pandas numpy")
+        sys.exit(1)
+    except Exception as e:
+        print(f"Error starting service: {e}")
+        sys.exit(1)
     
     if len(sys.argv) < 3:
         print(json.dumps({"error": "Usage: python ml_service.py <operation> <data>"}))

@@ -251,8 +251,12 @@ export class PythonServiceMonitor extends EventEmitter {
         env: { ...process.env, PYTHONUNBUFFERED: '1' }
       });
 
+      let serviceReady = false;
+      let startupTimeout: NodeJS.Timeout;
+
       // Handle process events
       this.process.on('error', (error) => {
+        if (startupTimeout) clearTimeout(startupTimeout);
         reject(new Error(`Failed to spawn Python process: ${error.message}`));
       });
 
@@ -260,6 +264,12 @@ export class PythonServiceMonitor extends EventEmitter {
         console.log(`Python service exited with code ${code}, signal ${signal}`);
         this.health.isHealthy = false;
         this.emit('service-exit', { code, signal });
+        
+        if (startupTimeout) clearTimeout(startupTimeout);
+        
+        if (!serviceReady) {
+          reject(new Error(`Python service exited during startup with code ${code}`));
+        }
         
         // Auto-restart if not intentionally stopped
         if (code !== 0 && !this.isStarting) {
@@ -274,7 +284,11 @@ export class PythonServiceMonitor extends EventEmitter {
         this.process.stdout.on('data', (data) => {
           const output = data.toString();
           this.logToFile('STDOUT', output);
+          console.log('Python service output:', output.trim());
+          
           if (output.includes('Service ready')) {
+            serviceReady = true;
+            if (startupTimeout) clearTimeout(startupTimeout);
             resolve();
           }
         });
@@ -284,18 +298,21 @@ export class PythonServiceMonitor extends EventEmitter {
         this.process.stderr.on('data', (data) => {
           const output = data.toString();
           this.logToFile('STDERR', output);
-          if (output.includes('CRITICAL') || output.includes('FATAL')) {
-            reject(new Error(`Python service critical error: ${output}`));
+          console.error('Python service error:', output.trim());
+          
+          if (output.includes('Error:') || output.includes('ImportError')) {
+            if (startupTimeout) clearTimeout(startupTimeout);
+            reject(new Error(`Python service startup error: ${output}`));
           }
         });
       }
 
-      // Timeout if service doesn't start within 30 seconds
-      setTimeout(() => {
-        if (this.isStarting) {
-          reject(new Error('Python service startup timeout'));
+      // Timeout if service doesn't start within 60 seconds (increased for ML dependencies)
+      startupTimeout = setTimeout(() => {
+        if (this.isStarting && !serviceReady) {
+          reject(new Error('Python service startup timeout - ML dependencies may be loading slowly'));
         }
-      }, 30000);
+      }, 60000);
     });
   }
 
@@ -327,20 +344,30 @@ export class PythonServiceMonitor extends EventEmitter {
    * Ping the Python service
    */
   private async pingService(): Promise<boolean> {
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), this.config.healthCheckTimeout);
-      
-      const response = await fetch('http://localhost:8000/health', {
-        method: 'GET',
-        signal: controller.signal
-      });
-      
-      clearTimeout(timeoutId);
-      return response.ok;
-    } catch (error) {
-      return false;
+    // Try multiple ports since the service might start on different ones
+    const ports = [8000, 8001, 8002];
+    
+    for (const port of ports) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), this.config.healthCheckTimeout);
+        
+        const response = await fetch(`http://localhost:${port}/health`, {
+          method: 'GET',
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        if (response.ok) {
+          return true;
+        }
+      } catch (error) {
+        // Try next port
+        continue;
+      }
     }
+    
+    return false;
   }
 
   /**
