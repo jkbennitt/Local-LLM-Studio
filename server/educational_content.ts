@@ -580,6 +580,41 @@ def fibonacci(n: int, memo: dict = {}) -> int:
         3. Adjust model evaluation metrics accordingly`
       });
     }
+
+    if (issues.includes('ocr_extraction')) {
+      educationalContent.push({
+        type: 'tip',
+        title: 'OCR Text Extraction Used',
+        content: `Your PDF was processed using OCR (Optical Character Recognition):
+
+        • **What Happened**: Text was extracted from images in your PDF
+        • **Quality**: OCR is highly accurate but may have minor errors
+        • **Next Steps**: Review the extracted content if needed
+
+        **OCR Benefits**:
+        1. Works with scanned documents and photos
+        2. Extracts text from image-based PDFs
+        3. Handles multiple languages and formats`
+      });
+    }
+
+    if (issues.includes('poor_ocr_quality')) {
+      educationalContent.push({
+        type: 'warning',
+        title: 'OCR Quality Warning',
+        content: `The OCR extraction confidence is lower than ideal:
+
+        • **Possible Causes**: Blurry images, poor scan quality, unusual fonts
+        • **Impact**: May affect training data quality
+        • **Solutions**: Use higher resolution scans or clearer images
+
+        **Tips for Better OCR**:
+        1. Scan at 300 DPI or higher
+        2. Ensure good lighting and contrast
+        3. Use standard fonts when possible
+        4. Avoid skewed or rotated images`
+      });
+    }
     
     return educationalContent;
   }

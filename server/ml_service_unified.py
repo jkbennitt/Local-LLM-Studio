@@ -25,6 +25,7 @@ logger = logging.getLogger(__name__)
 
 # Check ML dependencies
 ML_AVAILABLE = True
+OCR_AVAILABLE = False
 try:
     import torch
     import transformers
@@ -36,6 +37,26 @@ except ImportError as e:
     ML_AVAILABLE = False
     logger.warning(f"ML dependencies not available: {e}")
 
+# Check OCR dependencies
+try:
+    import pytesseract
+    import pdf2image
+    from PIL import Image, ImageFilter, ImageEnhance
+    import cv2
+    OCR_AVAILABLE = True
+    logger.info("OCR dependencies available")
+except ImportError as e:
+    OCR_AVAILABLE = False
+    logger.warning(f"OCR dependencies not available: {e}")
+
+# Check PDF processing
+try:
+    import pdfplumber
+    import PyPDF2
+    logger.info("PDF processing available")
+except ImportError as e:
+    logger.warning(f"PDF processing not available: {e}")
+
 class UnifiedMLService:
     """Unified service for all ML operations"""
 
@@ -46,7 +67,10 @@ class UnifiedMLService:
             'train_model': self.train_model,
             'test_model': self.test_model,
             'inference': self.inference,
-            'get_system_info': self.get_system_info
+            'get_system_info': self.get_system_info,
+            'extract_pdf_text': self.extract_pdf_text,
+            'process_ocr': self.process_ocr,
+            'preprocess_image': self.preprocess_image
         }
 
     def health_check(self, data: Dict[str, Any]) -> Dict[str, Any]:
@@ -251,6 +275,215 @@ class UnifiedMLService:
                 "tokens_generated": 10
             }
         except Exception as e:
+            return {"error": str(e)}
+
+    def extract_pdf_text(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Extract text from PDF using OCR for image-based PDFs"""
+        try:
+            pdf_path = data.get('pdf_path')
+            if not pdf_path or not os.path.exists(pdf_path):
+                return {"error": "Valid PDF path required"}
+
+            # Try traditional text extraction first
+            text_content = self._extract_text_traditional(pdf_path)
+            
+            # If traditional extraction failed or returned minimal text, use OCR
+            if not text_content or len(text_content.strip()) < 50:
+                logger.info("Traditional PDF extraction failed, attempting OCR...")
+                text_content = self._extract_text_ocr(pdf_path)
+                ocr_used = True
+            else:
+                ocr_used = False
+
+            return {
+                "success": True,
+                "text": text_content,
+                "ocr_used": ocr_used,
+                "character_count": len(text_content),
+                "word_count": len(text_content.split()),
+                "pages_processed": self._count_pdf_pages(pdf_path)
+            }
+        except Exception as e:
+            logger.error(f"PDF extraction error: {str(e)}")
+            return {"error": str(e)}
+
+    def _extract_text_traditional(self, pdf_path: str) -> str:
+        """Extract text using traditional PDF text extraction"""
+        try:
+            text_content = ""
+            
+            # Try pdfplumber first
+            try:
+                import pdfplumber
+                with pdfplumber.open(pdf_path) as pdf:
+                    for page in pdf.pages:
+                        page_text = page.extract_text()
+                        if page_text:
+                            text_content += page_text + "\n"
+            except:
+                pass
+            
+            # Fallback to PyPDF2 if pdfplumber fails
+            if not text_content:
+                try:
+                    import PyPDF2
+                    with open(pdf_path, 'rb') as file:
+                        reader = PyPDF2.PdfReader(file)
+                        for page in reader.pages:
+                            page_text = page.extract_text()
+                            if page_text:
+                                text_content += page_text + "\n"
+                except:
+                    pass
+            
+            return text_content.strip()
+        except Exception as e:
+            logger.error(f"Traditional PDF extraction failed: {str(e)}")
+            return ""
+
+    def _extract_text_ocr(self, pdf_path: str) -> str:
+        """Extract text using OCR for image-based PDFs"""
+        if not OCR_AVAILABLE:
+            return "OCR dependencies not available"
+        
+        try:
+            import pdf2image
+            import pytesseract
+            from PIL import Image
+            
+            # Convert PDF to images
+            images = pdf2image.convert_from_path(pdf_path, dpi=300)
+            extracted_text = ""
+            
+            for i, image in enumerate(images):
+                logger.info(f"Processing page {i+1}/{len(images)} with OCR...")
+                
+                # Preprocess image for better OCR
+                processed_image = self._preprocess_image_for_ocr(image)
+                
+                # Extract text using OCR
+                page_text = pytesseract.image_to_string(processed_image, lang='eng')
+                
+                if page_text.strip():
+                    extracted_text += f"--- Page {i+1} ---\n{page_text}\n\n"
+            
+            return extracted_text.strip()
+        
+        except Exception as e:
+            logger.error(f"OCR extraction failed: {str(e)}")
+            return f"OCR extraction error: {str(e)}"
+
+    def _preprocess_image_for_ocr(self, image):
+        """Preprocess image for better OCR results"""
+        try:
+            import cv2
+            import numpy as np
+            from PIL import Image, ImageFilter, ImageEnhance
+            
+            # Convert PIL image to OpenCV format
+            img_array = np.array(image)
+            
+            # Convert to grayscale
+            if len(img_array.shape) == 3:
+                gray = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
+            else:
+                gray = img_array
+            
+            # Apply denoising
+            denoised = cv2.medianBlur(gray, 5)
+            
+            # Apply threshold to get binary image
+            _, thresh = cv2.threshold(denoised, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+            
+            # Convert back to PIL Image
+            processed_image = Image.fromarray(thresh)
+            
+            # Enhance contrast
+            enhancer = ImageEnhance.Contrast(processed_image)
+            processed_image = enhancer.enhance(2.0)
+            
+            return processed_image
+        
+        except Exception as e:
+            logger.warning(f"Image preprocessing failed: {str(e)}, using original")
+            return image
+
+    def _count_pdf_pages(self, pdf_path: str) -> int:
+        """Count pages in PDF"""
+        try:
+            import PyPDF2
+            with open(pdf_path, 'rb') as file:
+                reader = PyPDF2.PdfReader(file)
+                return len(reader.pages)
+        except:
+            return 1
+
+    def process_ocr(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Process OCR on image files"""
+        if not OCR_AVAILABLE:
+            return {"error": "OCR dependencies not available"}
+        
+        try:
+            import pytesseract
+            from PIL import Image
+            
+            image_path = data.get('image_path')
+            if not image_path or not os.path.exists(image_path):
+                return {"error": "Valid image path required"}
+
+            # Load and preprocess image
+            image = Image.open(image_path)
+            processed_image = self._preprocess_image_for_ocr(image)
+            
+            # Extract text
+            text = pytesseract.image_to_string(processed_image, lang='eng')
+            
+            # Get confidence scores
+            confidence_data = pytesseract.image_to_data(processed_image, output_type=pytesseract.Output.DICT)
+            confidences = [int(conf) for conf in confidence_data['conf'] if int(conf) > 0]
+            avg_confidence = sum(confidences) / len(confidences) if confidences else 0
+            
+            return {
+                "success": True,
+                "text": text,
+                "confidence": avg_confidence,
+                "character_count": len(text),
+                "word_count": len(text.split())
+            }
+        
+        except Exception as e:
+            logger.error(f"OCR processing error: {str(e)}")
+            return {"error": str(e)}
+
+    def preprocess_image(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Preprocess image for OCR"""
+        try:
+            image_path = data.get('image_path')
+            output_path = data.get('output_path')
+            
+            if not image_path or not os.path.exists(image_path):
+                return {"error": "Valid image path required"}
+            
+            from PIL import Image
+            
+            # Load image
+            image = Image.open(image_path)
+            
+            # Preprocess
+            processed_image = self._preprocess_image_for_ocr(image)
+            
+            # Save if output path provided
+            if output_path:
+                processed_image.save(output_path)
+            
+            return {
+                "success": True,
+                "processed": True,
+                "output_path": output_path if output_path else None
+            }
+        
+        except Exception as e:
+            logger.error(f"Image preprocessing error: {str(e)}")
             return {"error": str(e)}
 
 class HealthHandler(BaseHTTPRequestHandler):

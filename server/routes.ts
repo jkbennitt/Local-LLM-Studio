@@ -140,7 +140,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     console.log(`Processing file: ${originalname}, size: ${size}, type: ${fileExtension}`);
 
     // Validate file type
-    const allowedTypes = ['.csv', '.json', '.txt'];
+    const allowedTypes = ['.csv', '.json', '.txt', '.pdf'];
     if (!allowedTypes.includes(fileExtension)) {
       // Clean up uploaded file
       try {
@@ -150,7 +150,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       return res.status(400).json({
         error: 'Invalid file type',
-        message: `File type ${fileExtension} is not supported. Please upload CSV, JSON, or TXT files.`,
+        message: `File type ${fileExtension} is not supported. Please upload CSV, JSON, TXT, or PDF files.`,
         allowedTypes
       });
     }
@@ -203,6 +203,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         if (sampleCount < 10) {
           validationIssues.push('too_small');
+        }
+      } else if (fileExtension === '.pdf') {
+        console.log('Processing PDF file with OCR...');
+        
+        try {
+          // Extract text from PDF using OCR
+          const pdfExtractionResult = await callMLService('extract_pdf_text', {
+            pdf_path: filePath
+          });
+
+          if (pdfExtractionResult.success && pdfExtractionResult.text) {
+            const extractedText = pdfExtractionResult.text;
+            
+            // Save extracted text to a temporary text file for processing
+            const textFilePath = filePath.replace('.pdf', '_extracted.txt');
+            fs.writeFileSync(textFilePath, extractedText);
+            
+            // Count paragraphs/sections as samples
+            const paragraphs = extractedText.split('\n\n').filter(p => p.trim().length > 20);
+            sampleCount = paragraphs.length;
+            
+            console.log(`PDF OCR extraction successful: ${sampleCount} samples extracted`);
+            console.log(`OCR used: ${pdfExtractionResult.ocr_used}`);
+            console.log(`Pages processed: ${pdfExtractionResult.pages_processed}`);
+            
+            if (sampleCount < 10) {
+              validationIssues.push('too_small');
+            }
+            
+            if (pdfExtractionResult.ocr_used) {
+              validationIssues.push('ocr_extraction');
+            }
+          } else {
+            throw new Error(pdfExtractionResult.error || 'Failed to extract text from PDF');
+          }
+        } catch (pdfError) {
+          console.error('PDF processing failed:', pdfError);
+          
+          try {
+            fs.unlinkSync(filePath);
+          } catch (cleanupError) {
+            console.warn('Failed to cleanup PDF file:', cleanupError);
+          }
+          
+          return res.status(400).json({
+            error: 'PDF processing failed',
+            message: `Could not extract text from PDF: ${(pdfError as Error).message}`,
+            details: 'Please ensure your PDF contains readable text or try uploading a different format.'
+          });
         }
       }
     } catch (error) {

@@ -252,7 +252,7 @@ export default function DataUpload({
             </div>
             
             <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              {isUploading ? "Uploading..." : "Drop your files here"}
+              {isUploading ? (uploadProgress > 80 ? "Processing file..." : "Uploading...") : "Drop your files here"}
             </h3>
             <p className="text-gray-600 mb-4">
               Supports CSV, JSON, TXT, and PDF files up to 50MB
@@ -266,7 +266,11 @@ export default function DataUpload({
                     style={{ width: `${uploadProgress}%` }}
                   />
                 </div>
-                <p className="text-sm text-gray-600 mt-2">{uploadProgress}% uploaded</p>
+                <p className="text-sm text-gray-600 mt-2">
+                  {uploadProgress < 80 ? `${uploadProgress}% uploaded` : 
+                   uploadProgress < 95 ? "Extracting text from PDF..." : 
+                   "Finalizing..."}
+                </p>
               </div>
             )}
             
@@ -373,6 +377,9 @@ export default function DataUpload({
                   <li>• Size: {formatFileSize(selectedDatasetData.fileSize)}</li>
                   <li>• Samples: {selectedDatasetData.sampleCount || 'Unknown'}</li>
                   <li>• Status: {selectedDatasetData.preprocessed ? 'Preprocessed' : 'Ready'}</li>
+                  {selectedDatasetData.fileType === 'pdf' && (
+                    <li>• OCR Processing: Completed</li>
+                  )}
                 </ul>
               </div>
               <div>
