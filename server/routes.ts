@@ -718,6 +718,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ success: cancelled });
   }));
 
+  // External Integration Endpoints
+  app.post('/api/external/generate', asyncHandler(async (req: any, res: any) => {
+    const { prompt, modelId = 1, maxLength = 100 } = req.body;
+    
+    if (!prompt) {
+      return res.status(400).json({ error: 'Prompt is required' });
+    }
+    
+    const model = await storage.getTrainedModel(modelId);
+    if (!model) {
+      return res.status(404).json({ error: 'Model not found' });
+    }
+
+    try {
+      const result = await callMLService('test_model', {
+        model_path: model.modelPath,
+        prompt,
+        max_length: maxLength,
+        temperature: 0.7
+      });
+
+      res.json({
+        generated_text: result.generated_text || result.response,
+        model_name: model.name,
+        model_id: modelId
+      });
+    } catch (error) {
+      res.status(500).json({ error: 'Generation failed' });
+    }
+  }));
+
+  app.get('/api/external/models', asyncHandler(async (req: any, res: any) => {
+    const models = await storage.getTrainedModels();
+    res.json(models.map(m => ({
+      id: m.id,
+      name: m.name,
+      version: m.version,
+      created: m.createdAt
+    })));
+  }));
+
   // Python Service Monitoring Endpoints
   app.get('/api/python-service/health', asyncHandler(async (req: any, res: any) => {
     const health = pythonServiceMonitor.getHealth();
