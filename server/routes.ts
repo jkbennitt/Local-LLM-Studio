@@ -40,11 +40,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const clientId = Math.random().toString(36).substr(2, 9);
     
     // More aggressive headers for connection stability
+
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Headers', 'Cache-Control');
+
     res.setHeader('X-Accel-Buffering', 'no'); // Disable proxy buffering
     
     sseClients.set(clientId, res);

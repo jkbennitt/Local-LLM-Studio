@@ -63,7 +63,8 @@ export class MemStorage implements IStorage {
   constructor() {
     this.initializeDefaultTemplates();
     this.restoreUploadsFromFilesystem();
-    this.restoreTrainingDataFromFilesystem();
+this.restoreTrainingDataFromFilesystem();
+
   }
 
   private initializeDefaultTemplates() {

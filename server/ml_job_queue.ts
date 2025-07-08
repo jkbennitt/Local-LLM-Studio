@@ -102,11 +102,13 @@ export class MLJobQueueManager extends EventEmitter {
       job_id: job.id
     };
 
+
     const pythonProcess = spawn('python3', ['server/ml_service_unified.py'], {
       stdio: ['pipe', 'pipe', 'pipe']
     });
 
     // Send training request via stdin using the unified service format
+
     const requestData = JSON.stringify({
       action: 'train_model',
       dataset_path: job.datasetPath,
