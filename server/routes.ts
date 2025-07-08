@@ -34,11 +34,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Server-Sent Events for training updates (more stable than WebSocket)
   const sseClients = new Map<string, Response>();
-  
+
   // SSE endpoint for training updates
   app.get('/api/training/stream', (req, res) => {
     const clientId = Math.random().toString(36).substr(2, 9);
-    
+
     // More aggressive headers for connection stability
 
     res.setHeader('Content-Type', 'text/event-stream');
@@ -48,10 +48,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.setHeader('Access-Control-Allow-Headers', 'Cache-Control');
 
     res.setHeader('X-Accel-Buffering', 'no'); // Disable proxy buffering
-    
+
     sseClients.set(clientId, res);
     console.log(`SSE client connected: ${clientId}`);
-    
+
     // Send initial connection message
     try {
       res.write(`data: ${JSON.stringify({
@@ -65,7 +65,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       sseClients.delete(clientId);
       return;
     }
-    
+
     // Keep connection alive with more frequent pings
     const keepAlive = setInterval(() => {
       if (!res.destroyed && sseClients.has(clientId)) {
@@ -81,7 +81,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         sseClients.delete(clientId);
       }
     }, 15000); // Reduced to 15 seconds for better stability
-    
+
     req.on('close', () => {
       console.log(`SSE client disconnected: ${clientId}`);
       clearInterval(keepAlive);
@@ -100,13 +100,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get model templates with educational content
   app.get('/api/templates', asyncHandler(async (req: any, res: any) => {
     const templates = await storage.getModelTemplates();
-    
+
     // Add educational content to each template
     const templatesWithEducation = templates.map(template => ({
       ...template,
       educationalContent: EducationalContentGenerator.getTemplateEducation(template.useCase)
     }));
-    
+
     res.json(templatesWithEducation);
   }));
 
@@ -126,7 +126,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Upload dataset with advanced validation
   app.post('/api/datasets', upload.single('file'), asyncHandler(async (req: any, res: any) => {
     console.log('Upload request received:', req.file ? 'File present' : 'No file');
-    
+
     if (!req.file) {
       return res.status(400).json({ 
         error: 'No file uploaded',
@@ -136,9 +136,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     const { originalname, filename, size, mimetype } = req.file;
     const fileExtension = path.extname(originalname).toLowerCase();
-    
+
     console.log(`Processing file: ${originalname}, size: ${size}, type: ${fileExtension}`);
-    
+
     // Validate file type
     const allowedTypes = ['.csv', '.json', '.txt'];
     if (!allowedTypes.includes(fileExtension)) {
@@ -174,13 +174,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     let sampleCount = 0;
     let validationIssues: string[] = [];
     const filePath = path.join('uploads', filename);
-    
+
     try {
       if (fileExtension === '.csv') {
         const content = fs.readFileSync(filePath, 'utf8');
         const lines = content.split('\n').filter(line => line.trim());
         sampleCount = Math.max(0, lines.length - 1); // Subtract header
-        
+
         if (sampleCount < 10) {
           validationIssues.push('too_small');
         }
@@ -192,7 +192,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } catch (jsonError) {
           throw new Error('Invalid JSON format');
         }
-        
+
         if (sampleCount < 10) {
           validationIssues.push('too_small');
         }
@@ -200,7 +200,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const content = fs.readFileSync(filePath, 'utf8');
         const lines = content.split('\n').filter(line => line.trim());
         sampleCount = lines.length;
-        
+
         if (sampleCount < 10) {
           validationIssues.push('too_small');
         }
@@ -211,7 +211,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } catch (cleanupError) {
         console.warn('Failed to cleanup file:', cleanupError);
       }
-      
+
       return res.status(400).json({
         error: 'Failed to parse dataset file',
         message: `Error reading file: ${(error as Error).message}`,
@@ -270,11 +270,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const id = parseInt(req.params.id);
       const dataset = await storage.getDataset(id);
-      
+
       if (!dataset) {
         return res.status(404).json({ error: 'Dataset not found' });
       }
-      
+
       // Delete file from filesystem
       const fs = await import('fs');
       try {
@@ -284,10 +284,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } catch (fileError) {
         console.warn('Failed to delete file:', fileError);
       }
-      
+
       // Delete from storage
       await storage.deleteDataset(id);
-      
+
       res.json({ message: 'Dataset deleted successfully' });
     } catch (error) {
       res.status(500).json({ error: 'Failed to delete dataset' });
@@ -298,10 +298,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/training/start', async (req, res) => {
     try {
       const { templateId, datasetId, name } = req.body;
-      
+
       const template = await storage.getModelTemplate(templateId);
       const dataset = await storage.getDataset(datasetId);
-      
+
       if (!template || !dataset) {
         return res.status(404).json({ error: 'Template or dataset not found' });
       }
@@ -356,10 +356,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const jobId = parseInt(req.params.id);
       const job = await storage.updateTrainingJob(jobId, { status: 'stopped' });
-      
+
       // Broadcast update to WebSocket clients
       broadcastTrainingUpdate(job);
-      
+
       res.json(job);
     } catch (error) {
       res.status(500).json({ error: 'Failed to stop training job' });
@@ -371,7 +371,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { prompt } = req.body;
       const modelId = parseInt(req.params.id);
-      
+
       const model = await storage.getTrainedModel(modelId);
       if (!model) {
         return res.status(404).json({ error: 'Model not found' });
@@ -426,7 +426,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const datasets = await storage.getDatasets();
         dataset = datasets.find(d => d.filePath === job.datasetPath);
       }
-      
+
       if (!dataset) {
         console.error(`Dataset not found for job ${jobId}, using default config`);
         // Use default dataset info for memory calculation
@@ -472,7 +472,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Queue the job with production job queue manager
       const queuedJob = await jobQueueManager.enqueueJob(updatedJob, dataset.filePath);
-      
+
       // Track user interaction
       if (updatedJob.userId) {
         await adaptiveEducation.trackInteraction(
@@ -523,7 +523,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: 'failed',
         error: error instanceof Error ? error.message : 'Unknown error'
       });
-      
+
       const failedJob = await storage.getTrainingJob(jobId);
       if (failedJob) {
         broadcastTrainingUpdate(failedJob);
@@ -557,7 +557,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return new Promise((resolve, reject) => {
       const pythonScript = 'server/ml_service_unified.py';
       const pythonProcess = spawn('python3', [pythonScript]);
-      
+
       let stdout = '';
       let stderr = '';
       let timeout: NodeJS.Timeout;
@@ -594,7 +594,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Parse the last valid JSON line of stdout as the result
             const lines = stdout.trim().split('\n');
             let result = null;
-            
+
             // Find the last valid JSON line
             for (let i = lines.length - 1; i >= 0; i--) {
               try {
@@ -606,7 +606,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 continue;
               }
             }
-            
+
             if (!result) {
               reject(new CustomError('No valid JSON response found', 5000, 500, true, { stdout, stderr }));
             } else if (result.error) {
@@ -635,7 +635,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const metrics = deployment.getPerformanceMetrics();
     const memInfo = os.totalmem();
     const freeMemInfo = os.freemem();
-    
+
     res.json({
       cpu: {
         usage: metrics.cpu,
@@ -657,39 +657,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
       errors: 0 // Would track real errors in production
     });
   }));
-  
+
   app.get('/api/system/health', asyncHandler(async (req: any, res: any) => {
     const { deployment } = await import('./deployment_config');
     const health = await deployment.healthCheck();
     res.json(health);
   }));
-  
+
   // Adaptive education endpoints
   app.get('/api/education/content/:topic', asyncHandler(async (req: any, res: any) => {
     const { topic } = req.params;
     const userId = req.query.userId ? parseInt(req.query.userId) : 1;
-    
+
     const content = await adaptiveEducation.generateAdaptiveContent(
       userId,
       topic,
       req.query.context || 'general'
     );
-    
+
     res.json(content);
   }));
-  
+
   app.get('/api/education/tips', asyncHandler(async (req: any, res: any) => {
     const userId = req.query.userId ? parseInt(req.query.userId) : 1;
     const action = req.query.action || 'general';
     const state = req.query.state || {};
-    
+
     const tips = await adaptiveEducation.generateContextualTips(userId, action, state);
     res.json({ tips });
   }));
-  
+
   app.post('/api/education/track', asyncHandler(async (req: any, res: any) => {
     const { userId, action, context, success, timeSpent, errors } = req.body;
-    
+
     await adaptiveEducation.trackInteraction(
       userId,
       action,
@@ -698,22 +698,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       timeSpent,
       errors
     );
-    
+
     res.json({ success: true });
   }));
-  
+
   // Memory management endpoints
   app.get('/api/memory/report', asyncHandler(async (req: any, res: any) => {
     const report = await memoryManager.createMemoryReport();
     res.json({ report });
   }));
-  
+
   // Job queue status
   app.get('/api/jobs/metrics', asyncHandler(async (req: any, res: any) => {
     const metrics = await jobQueueManager.getMetrics();
     res.json(metrics);
   }));
-  
+
   app.delete('/api/jobs/:id', asyncHandler(async (req: any, res: any) => {
     const jobId = parseInt(req.params.id);
     const cancelled = await jobQueueManager.cancelJob(jobId);
@@ -723,11 +723,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // External Integration Endpoints
   app.post('/api/external/generate', asyncHandler(async (req: any, res: any) => {
     const { prompt, modelId = 1, maxLength = 100 } = req.body;
-    
+
     if (!prompt) {
       return res.status(400).json({ error: 'Prompt is required' });
     }
-    
+
     const model = await storage.getTrainedModel(modelId);
     if (!model) {
       return res.status(404).json({ error: 'Model not found' });
@@ -786,7 +786,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/resources/optimize', asyncHandler(async (req: any, res: any) => {
     const { modelName, datasetSize, priority } = req.body;
-    
+
     if (!modelName || !datasetSize) {
       return res.status(400).json({ 
         error: 'Missing required parameters: modelName, datasetSize' 
@@ -798,14 +798,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       datasetSize, 
       priority || 'memory'
     );
-    
+
     res.json(optimizedConfig);
   }));
 
   app.get('/api/resources/requirements/:modelName', asyncHandler(async (req: any, res: any) => {
     const { modelName } = req.params;
     const datasetSize = parseInt(req.query.datasetSize as string) || 1000;
-    
+
     const resources = await resourceDetector.detectResources();
     const optimizedConfig = await resourceDetector.generateOptimizedConfig(
       modelName,
@@ -816,7 +816,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Check if current resources meet requirements
     const memoryRequired = optimizedConfig.training.batchSize * 100; // Simplified calculation
     const canRun = resources.memory.available >= memoryRequired;
-    
+
     res.json({
       canRun,
       currentResources: resources,
@@ -902,13 +902,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/system/fallback/:modelName', asyncHandler(async (req: any, res: any) => {
     const { modelName } = req.params;
     const { datasetSize, force } = req.body;
-    
+
     const resources = await resourceDetector.detectResources();
     const config = await resourceDetector.generateOptimizedConfig(modelName, datasetSize, 'memory');
-    
+
     // Check if we need fallback mode
     const needsFallback = resources.memory.available < 512 || resources.cpu.cores < 2;
-    
+
     if (needsFallback || force) {
       const fallbackConfig = config.fallback.alternatives[0]; // Use ultra light mode
       res.json({
@@ -950,6 +950,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Add global error handler at the end
   app.use(globalErrorHandler);
-  
+
   return httpServer;
 }

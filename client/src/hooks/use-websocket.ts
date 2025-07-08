@@ -242,3 +242,18 @@ export function useWebSocket(onMessage?: (message: WebSocketMessage) => void) {
     queueLength: messageQueue.current.length
   };
 }
+
+interface UseWebSocketOptions {
+  onMessage?: (data: any) => void;
+  onError?: (error: Event) => void;
+  onOpen?: () => void;
+  onClose?: () => void;
+  reconnectInterval?: number;
+  maxReconnectAttempts?: number;
+}
+
+interface WebSocketState {
+  isConnected: boolean;
+  error: string | null;
+  reconnectAttempts: number;
+}

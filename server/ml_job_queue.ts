@@ -1,5 +1,38 @@
 import { EventEmitter } from 'events';
+import { v4 as uuidv4 } from 'uuid';
 import { spawn, ChildProcess } from 'child_process';
+import { join } from 'path';
+import { writeFileSync, readFileSync, existsSync } from 'fs';
+
+interface JobConfig {
+  model_name: string;
+  dataset_path: string;
+  output_dir: string;
+  learning_rate: number;
+  batch_size: number;
+  epochs: number;
+  max_length: number;
+  warmup_steps: number;
+  weight_decay: number;
+  save_steps: number;
+  eval_steps: number;
+  logging_steps: number;
+}
+
+interface JobStatus {
+  id: string;
+  status: 'pending' | 'running' | 'completed' | 'failed';
+  progress: number;
+  currentEpoch: number;
+  totalEpochs: number;
+  loss: number;
+  learningRate: number;
+  estimatedTimeRemaining: number;
+  startTime: Date;
+  endTime?: Date;
+  error?: string;
+  config: JobConfig;
+}
 import path from 'path';
 import { storage } from './storage';
 
@@ -115,7 +148,7 @@ export class MLJobQueueManager extends EventEmitter {
       config: job.config,
       job_id: job.id
     }) + '\n';
-    
+
     pythonProcess.stdin.write(requestData);
     pythonProcess.stdin.end();
 
@@ -133,7 +166,7 @@ export class MLJobQueueManager extends EventEmitter {
         if (line.trim().startsWith('{')) {
           try {
             const progressData = JSON.parse(line.trim());
-            
+
             if (progressData.type === 'training_progress') {
               this.emit('job:progress', {
                 jobId: job.id,
@@ -164,7 +197,7 @@ export class MLJobQueueManager extends EventEmitter {
           // Parse the last valid JSON line as the final result
           const lines = stdout.trim().split('\n');
           let result = null;
-          
+
           for (let i = lines.length - 1; i >= 0; i--) {
             try {
               if (lines[i].trim().startsWith('{') || lines[i].trim().startsWith('[')) {
@@ -178,7 +211,7 @@ export class MLJobQueueManager extends EventEmitter {
               continue;
             }
           }
-          
+
           if (result && result.success) {
             await storage.updateTrainingJob(job.id, {
               status: 'completed',
@@ -242,7 +275,7 @@ export class MLJobQueueManager extends EventEmitter {
     const allJobs = await storage.getTrainingJobs();
     const completedJobs = allJobs.filter(job => job.status === 'completed').length;
     const failedJobs = allJobs.filter(job => job.status === 'failed').length;
-    
+
     return {
       queueLength: this.queue.length,
       activeJobs: this.activeJobs.size,

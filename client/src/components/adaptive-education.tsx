@@ -71,6 +71,30 @@ interface ProgressCheckpoint {
   revisitRecommended: boolean;
 }
 
+interface LearningPath {
+  id: string;
+  title: string;
+  difficulty: 'beginner' | 'intermediate' | 'advanced';
+  progress: number;
+  estimatedTime: string;
+  skills: string[];
+  modules: Array<{
+    id: string;
+    title: string;
+    completed: boolean;
+    type: 'video' | 'exercise' | 'quiz';
+  }>;
+}
+
+interface StudentProgress {
+  totalHours: number;
+  completedModules: number;
+  currentStreak: number;
+  skillsAcquired: string[];
+  weakAreas: string[];
+  strengths: string[];
+}
+
 export default function AdaptiveEducation({ 
   topic, 
   context, 
@@ -82,13 +106,13 @@ export default function AdaptiveEducation({
   const [selectedAnswer, setSelectedAnswer] = useState<string>("");
   const [showAnswer, setShowAnswer] = useState(false);
   const [preferredView, setPreferredView] = useState<'simplified' | 'detailed'>('simplified');
-  
+
   // Fetch adaptive content
   const { data: content, isLoading } = useQuery({
     queryKey: ['/api/education/content', topic, context, userId],
     queryFn: () => apiRequest(`/api/education/content/${topic}?userId=${userId}&context=${context}`)
   });
-  
+
   // Fetch contextual tips
   const { data: tipsData } = useQuery({
     queryKey: ['/api/education/tips', userId, currentAction],
@@ -96,7 +120,7 @@ export default function AdaptiveEducation({
     enabled: !!currentAction,
     refetchInterval: 30000 // Refresh every 30 seconds
   });
-  
+
   // Track interactions
   const trackInteraction = useMutation({
     mutationFn: (data: any) => apiRequest('/api/education/track', {
@@ -104,7 +128,7 @@ export default function AdaptiveEducation({
       body: JSON.stringify(data)
     })
   });
-  
+
   useEffect(() => {
     // Track that user viewed this content
     if (content) {
@@ -118,7 +142,7 @@ export default function AdaptiveEducation({
       });
     }
   }, [content, topic]);
-  
+
   const toggleSection = (index: number) => {
     const newExpanded = new Set(expandedSections);
     if (newExpanded.has(index)) {
@@ -128,7 +152,7 @@ export default function AdaptiveEducation({
     }
     setExpandedSections(newExpanded);
   };
-  
+
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
       case 'beginner': return 'bg-green-100 text-green-800';
@@ -137,7 +161,7 @@ export default function AdaptiveEducation({
       default: return 'bg-gray-100 text-gray-800';
     }
   };
-  
+
   const getSectionIcon = (type: string) => {
     switch (type) {
       case 'explanation': return <BookOpen className="w-4 h-4" />;
@@ -148,11 +172,11 @@ export default function AdaptiveEducation({
       default: return <Info className="w-4 h-4" />;
     }
   };
-  
+
   const handleQuizAnswer = (answer: string, correctAnswer: string) => {
     setSelectedAnswer(answer);
     setShowAnswer(true);
-    
+
     trackInteraction.mutate({
       userId,
       action: 'quiz_answer',
@@ -162,7 +186,7 @@ export default function AdaptiveEducation({
       errors: answer !== correctAnswer ? ['incorrect_answer'] : []
     });
   };
-  
+
   if (isLoading) {
     return (
       <Card className={className}>
@@ -175,9 +199,9 @@ export default function AdaptiveEducation({
       </Card>
     );
   }
-  
+
   if (!content) return null;
-  
+
   return (
     <div className={cn("space-y-4", className)}>
       {/* Contextual Tips */}
@@ -193,7 +217,7 @@ export default function AdaptiveEducation({
           </AlertDescription>
         </Alert>
       )}
-      
+
       {/* Main Educational Content */}
       <Card>
         <CardHeader>
@@ -213,14 +237,14 @@ export default function AdaptiveEducation({
             </div>
           </div>
         </CardHeader>
-        
+
         <CardContent>
           <Tabs value={preferredView} onValueChange={(v) => setPreferredView(v as any)}>
             <TabsList className="mb-4">
               <TabsTrigger value="simplified">Simplified</TabsTrigger>
               <TabsTrigger value="detailed">Detailed</TabsTrigger>
             </TabsList>
-            
+
             <TabsContent value="simplified" className="space-y-4">
               {/* Learning Objectives */}
               <div className="bg-blue-50 rounded-lg p-4">
@@ -234,7 +258,7 @@ export default function AdaptiveEducation({
                   ))}
                 </ul>
               </div>
-              
+
               {/* Main Content Sections */}
               {content.content.slice(0, 3).map((section, index) => (
                 <div key={index} className="border rounded-lg p-4">
@@ -256,7 +280,7 @@ export default function AdaptiveEducation({
                   </div>
                 </div>
               ))}
-              
+
               {/* Practical Tips */}
               {content.practicalTips && content.practicalTips.length > 0 && (
                 <div className="bg-green-50 rounded-lg p-4">
@@ -272,7 +296,7 @@ export default function AdaptiveEducation({
                 </div>
               )}
             </TabsContent>
-            
+
             <TabsContent value="detailed" className="space-y-4">
               {/* Prerequisites */}
               {content.prerequisites && content.prerequisites.length > 0 && (
@@ -283,7 +307,7 @@ export default function AdaptiveEducation({
                   </AlertDescription>
                 </Alert>
               )}
-              
+
               {/* All Content Sections */}
               {content.content.map((section, index) => (
                 <Collapsible
@@ -325,7 +349,7 @@ export default function AdaptiveEducation({
                   </CollapsibleContent>
                 </Collapsible>
               ))}
-              
+
               {/* Alternative Explanations */}
               {content.alternativeExplanations && content.alternativeExplanations.length > 0 && (
                 <div className="mt-6">
@@ -342,7 +366,7 @@ export default function AdaptiveEducation({
               )}
             </TabsContent>
           </Tabs>
-          
+
           {/* Interactive Elements */}
           {content.interactiveElements && content.interactiveElements.length > 0 && (
             <div className="mt-6 space-y-4">
@@ -384,7 +408,7 @@ export default function AdaptiveEducation({
               ))}
             </div>
           )}
-          
+
           {/* Progress Checkpoints */}
           {content.progressCheckpoints && content.progressCheckpoints.length > 0 && (
             <div className="mt-6">
@@ -406,7 +430,7 @@ export default function AdaptiveEducation({
               </div>
             </div>
           )}
-          
+
           {/* Adaptation Reason */}
           {content.adaptationReason && (
             <div className="mt-4 text-xs text-gray-500 italic">

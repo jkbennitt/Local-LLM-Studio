@@ -34,25 +34,25 @@ interface JobMetrics {
 
 export default function SystemDashboard() {
   const [selectedJobId, setSelectedJobId] = useState<number | null>(null);
-  
+
   // Fetch job queue metrics
   const { data: jobMetrics } = useQuery({
     queryKey: ['/api/jobs/metrics'],
     refetchInterval: 5000
   });
-  
+
   // Fetch memory report
   const { data: memoryReport } = useQuery({
     queryKey: ['/api/memory/report'],
     refetchInterval: 30000
   });
-  
+
   // Fetch training jobs
   const { data: jobs } = useQuery({
     queryKey: ['/api/training/jobs'],
     refetchInterval: 5000
   });
-  
+
   // Cancel job mutation
   const cancelJobMutation = useMutation({
     mutationFn: (jobId: number) => apiRequest(`/api/jobs/${jobId}`, {
@@ -63,13 +63,13 @@ export default function SystemDashboard() {
       queryClient.invalidateQueries({ queryKey: ['/api/jobs/metrics'] });
     }
   });
-  
+
   const formatDuration = (seconds: number) => {
     if (seconds < 60) return `${Math.round(seconds)}s`;
     if (seconds < 3600) return `${Math.round(seconds / 60)}m`;
     return `${Math.round(seconds / 3600)}h`;
   };
-  
+
   const getJobStatusColor = (status: string) => {
     switch (status) {
       case 'running': return 'bg-blue-500';
@@ -79,7 +79,7 @@ export default function SystemDashboard() {
       default: return 'bg-gray-500';
     }
   };
-  
+
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between mb-8">
@@ -94,7 +94,7 @@ export default function SystemDashboard() {
           Production Mode
         </Badge>
       </div>
-      
+
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
@@ -110,7 +110,7 @@ export default function SystemDashboard() {
             </p>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-gray-600">
@@ -124,7 +124,7 @@ export default function SystemDashboard() {
             </p>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-gray-600">
@@ -142,7 +142,7 @@ export default function SystemDashboard() {
             </p>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-gray-600">
@@ -159,14 +159,14 @@ export default function SystemDashboard() {
           </CardContent>
         </Card>
       </div>
-      
+
       {/* Main Content */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Performance Monitor */}
         <div className="lg:col-span-2">
           <PerformanceMonitor />
         </div>
-        
+
         {/* Memory Report */}
         <Card>
           <CardHeader>
@@ -188,7 +188,7 @@ export default function SystemDashboard() {
           </CardContent>
         </Card>
       </div>
-      
+
       {/* Job Management */}
       <Card>
         <CardHeader>
@@ -204,7 +204,7 @@ export default function SystemDashboard() {
               <TabsTrigger value="completed">Completed</TabsTrigger>
               <TabsTrigger value="failed">Failed</TabsTrigger>
             </TabsList>
-            
+
             <TabsContent value="active" className="mt-4">
               <div className="space-y-2">
                 {jobs?.filter((job: any) => 
@@ -242,7 +242,7 @@ export default function SystemDashboard() {
                     </div>
                   </div>
                 ))}
-                
+
                 {jobs?.filter((job: any) => 
                   job.status === 'running' || job.status === 'pending'
                 ).length === 0 && (
@@ -252,7 +252,7 @@ export default function SystemDashboard() {
                 )}
               </div>
             </TabsContent>
-            
+
             <TabsContent value="completed" className="mt-4">
               <div className="space-y-2">
                 {jobs?.filter((job: any) => job.status === 'completed')
@@ -278,7 +278,7 @@ export default function SystemDashboard() {
                 ))}
               </div>
             </TabsContent>
-            
+
             <TabsContent value="failed" className="mt-4">
               <div className="space-y-2">
                 {jobs?.filter((job: any) => job.status === 'failed')
@@ -307,7 +307,7 @@ export default function SystemDashboard() {
           </Tabs>
         </CardContent>
       </Card>
-      
+
       {/* System Recommendations */}
       {jobMetrics && (jobMetrics.memoryUsage > 80 || jobMetrics.cpuUsage > 80) && (
         <Alert>

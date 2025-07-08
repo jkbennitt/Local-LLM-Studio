@@ -15,31 +15,41 @@ import {
   type TrainedModel,
   type InsertTrainedModel
 } from "@shared/schema";
+import { Database } from 'sqlite3';
+import { join } from 'path';
+import { existsSync, mkdirSync } from 'fs';
+
+const dbPath = join(process.cwd(), 'ml_training.db');
+const db = new Database(dbPath);
+
+interface DatabaseRow {
+  [key: string]: any;
+}
 
 export interface IStorage {
   // Users
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
-  
+
   // Model Templates
   getModelTemplates(): Promise<ModelTemplate[]>;
   getModelTemplate(id: number): Promise<ModelTemplate | undefined>;
   createModelTemplate(template: InsertModelTemplate): Promise<ModelTemplate>;
-  
+
   // Training Jobs
   getTrainingJobs(userId?: number): Promise<TrainingJob[]>;
   getTrainingJob(id: number): Promise<TrainingJob | undefined>;
   createTrainingJob(job: InsertTrainingJob): Promise<TrainingJob>;
   updateTrainingJob(id: number, updates: Partial<TrainingJob>): Promise<TrainingJob>;
-  
+
   // Datasets
   getDatasets(userId?: number): Promise<Dataset[]>;
   getDataset(id: number): Promise<Dataset | undefined>;
   createDataset(dataset: InsertDataset): Promise<Dataset>;
   updateDataset(id: number, updates: Partial<Dataset>): Promise<Dataset>;
   deleteDataset(id: number): Promise<boolean>;
-  
+
   // Trained Models
   getTrainedModels(userId?: number): Promise<TrainedModel[]>;
   getTrainedModel(id: number): Promise<TrainedModel | undefined>;
@@ -53,7 +63,7 @@ export class MemStorage implements IStorage {
   private trainingJobs: Map<number, TrainingJob> = new Map();
   private datasets: Map<number, Dataset> = new Map();
   private trainedModels: Map<number, TrainedModel> = new Map();
-  
+
   private currentUserId = 1;
   private currentTemplateId = 1;
   private currentJobId = 1;
@@ -136,23 +146,23 @@ this.restoreTrainingDataFromFilesystem();
       try {
         const fs = await import('fs');
         const path = await import('path');
-        
+
         const uploadsDir = 'uploads';
         if (!fs.existsSync(uploadsDir)) {
           return;
         }
-        
+
         const files = fs.readdirSync(uploadsDir);
         console.log(`Found ${files.length} uploaded files to restore`);
-        
+
         for (const file of files) {
           const filePath = path.join(uploadsDir, file);
           const stats = fs.statSync(filePath);
-          
+
           // Determine file type and original name
           let originalName = `restored_${file}`;
           let fileType = '.txt';
-          
+
           // Try to detect file type by reading content
           try {
             const content = fs.readFileSync(filePath, 'utf8');
@@ -167,7 +177,7 @@ this.restoreTrainingDataFromFilesystem();
             fileType = '.txt';
             originalName = `training_data_${Date.now()}.txt`;
           }
-          
+
           // Count samples
           let sampleCount = 0;
           try {
@@ -180,7 +190,7 @@ this.restoreTrainingDataFromFilesystem();
           } catch (e) {
             sampleCount = 1; // Default to 1 if can't read
           }
-          
+
           const dataset = {
             id: this.currentDatasetId++,
             userId: 1,
@@ -193,10 +203,10 @@ this.restoreTrainingDataFromFilesystem();
             preprocessed: false,
             createdAt: stats.birthtime || stats.mtime
           };
-          
+
           this.datasets.set(dataset.id, dataset);
         }
-        
+
         console.log(`✅ Restored ${this.datasets.size} datasets from uploads folder`);
       } catch (error) {
         console.error('Failed to restore uploads:', error);
@@ -208,7 +218,7 @@ this.restoreTrainingDataFromFilesystem();
     try {
       const fs = await import('fs');
       const path = await import('path');
-      
+
       setTimeout(() => {
         try {
           const modelsDir = './models';
@@ -227,7 +237,7 @@ this.restoreTrainingDataFromFilesystem();
           for (const jobDir of jobDirs) {
             const jobId = parseInt(jobDir.replace('job_', ''));
             const jobPath = path.join(modelsDir, jobDir);
-            
+
             // Check if this job already exists
             if (!this.trainingJobs.has(jobId)) {
               // Create training job record
@@ -363,7 +373,7 @@ this.restoreTrainingDataFromFilesystem();
   async updateTrainingJob(id: number, updates: Partial<TrainingJob>): Promise<TrainingJob> {
     const job = this.trainingJobs.get(id);
     if (!job) throw new Error('Training job not found');
-    
+
     const updatedJob = { ...job, ...updates, updatedAt: new Date() };
     this.trainingJobs.set(id, updatedJob);
     return updatedJob;
@@ -396,7 +406,7 @@ this.restoreTrainingDataFromFilesystem();
   async updateDataset(id: number, updates: Partial<Dataset>): Promise<Dataset> {
     const dataset = this.datasets.get(id);
     if (!dataset) throw new Error('Dataset not found');
-    
+
     const updatedDataset = { ...dataset, ...updates };
     this.datasets.set(id, updatedDataset);
     return updatedDataset;
@@ -439,7 +449,7 @@ this.restoreTrainingDataFromFilesystem();
   async updateTrainedModel(id: number, updates: Partial<TrainedModel>): Promise<TrainedModel> {
     const model = this.trainedModels.get(id);
     if (!model) throw new Error('Trained model not found');
-    
+
     const updatedModel = { ...model, ...updates };
     this.trainedModels.set(id, updatedModel);
     return updatedModel;

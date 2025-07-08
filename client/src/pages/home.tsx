@@ -7,6 +7,43 @@ import TemplateSelection from "@/components/template-selection";
 import DataUpload from "@/components/data-upload";
 import Training from "@/components/training";
 import Testing from "@/components/testing";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
+import { Button } from '../components/ui/button';
+import { Badge } from '../components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
+import { 
+  Brain, 
+  Database, 
+  Settings, 
+  BarChart3, 
+  Zap, 
+  Users, 
+  BookOpen, 
+  Target,
+  TrendingUp,
+  Clock,
+  CheckCircle,
+  AlertTriangle,
+  Plus,
+  Upload,
+  Play,
+  Eye
+} from 'lucide-react';
+
+interface QuickStat {
+  label: string;
+  value: string;
+  change: string;
+  icon: React.ReactNode;
+}
+
+interface RecentActivity {
+  id: string;
+  type: 'training' | 'dataset' | 'model';
+  title: string;
+  status: 'completed' | 'running' | 'failed';
+  timestamp: string;
+}
 
 type WorkflowStep = 'template' | 'data' | 'training' | 'testing';
 
@@ -82,7 +119,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
-      
+
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           <Sidebar
@@ -91,7 +128,7 @@ export default function Home() {
             currentJob={currentJob}
             jobs={jobs || []}
           />
-          
+
           <div className="lg:col-span-3">
             <WorkflowOverview
               activeStep={activeStep}
@@ -100,7 +137,7 @@ export default function Home() {
               selectedDataset={selectedDataset}
               currentJob={currentJob}
             />
-            
+
             {renderContent()}
           </div>
         </div>

@@ -35,19 +35,19 @@ interface PerformanceMonitorProps {
 
 export default function PerformanceMonitor({ className, compact = false }: PerformanceMonitorProps) {
   const [realtimeMetrics, setRealtimeMetrics] = useState<Partial<SystemMetrics>>({});
-  
+
   // Fetch system metrics
   const { data: metrics, isLoading } = useQuery({
     queryKey: ['/api/system/metrics'],
     refetchInterval: 5000, // Update every 5 seconds
   });
-  
+
   // Health check
   const { data: health } = useQuery({
     queryKey: ['/api/system/health'],
     refetchInterval: 30000, // Check every 30 seconds
   });
-  
+
   useEffect(() => {
     // Simulate real-time metrics updates
     const interval = setInterval(() => {
@@ -59,33 +59,33 @@ export default function PerformanceMonitor({ className, compact = false }: Perfo
         }
       }));
     }, 1000);
-    
+
     return () => clearInterval(interval);
   }, []);
-  
+
   const formatUptime = (seconds: number) => {
     const days = Math.floor(seconds / 86400);
     const hours = Math.floor((seconds % 86400) / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
-    
+
     if (days > 0) return `${days}d ${hours}h`;
     if (hours > 0) return `${hours}h ${minutes}m`;
     return `${minutes}m`;
   };
-  
+
   const getStatusColor = (percentage: number) => {
     if (percentage < 50) return 'text-green-500';
     if (percentage < 80) return 'text-yellow-500';
     return 'text-red-500';
   };
-  
+
   const getHealthBadge = (status: string) => {
     if (status === 'healthy') {
       return <Badge className="bg-green-500 text-white">Healthy</Badge>;
     }
     return <Badge className="bg-red-500 text-white">Issues Detected</Badge>;
   };
-  
+
   if (compact) {
     return (
       <div className={cn("flex items-center space-x-4 text-sm", className)}>
@@ -110,7 +110,7 @@ export default function PerformanceMonitor({ className, compact = false }: Perfo
       </div>
     );
   }
-  
+
   return (
     <Card className={className}>
       <CardHeader>
@@ -140,7 +140,7 @@ export default function PerformanceMonitor({ className, compact = false }: Perfo
               {realtimeMetrics?.cpu?.cores || 0} cores available
             </p>
           </div>
-          
+
           {/* Memory Usage */}
           <div>
             <div className="flex items-center justify-between mb-2">
@@ -157,7 +157,7 @@ export default function PerformanceMonitor({ className, compact = false }: Perfo
               {(metrics?.memory?.used / 1024).toFixed(1)}GB / {(metrics?.memory?.total / 1024).toFixed(1)}GB
             </p>
           </div>
-          
+
           {/* ML Jobs */}
           <div>
             <div className="flex items-center justify-between mb-2">
@@ -184,7 +184,7 @@ export default function PerformanceMonitor({ className, compact = false }: Perfo
               </div>
             </div>
           </div>
-          
+
           {/* System Status */}
           <div className="border-t pt-4">
             <div className="grid grid-cols-2 gap-4 text-sm">
@@ -207,7 +207,7 @@ export default function PerformanceMonitor({ className, compact = false }: Perfo
               </div>
             </div>
           </div>
-          
+
           {/* Health Checks */}
           {health?.checks && (
             <div className="border-t pt-4">

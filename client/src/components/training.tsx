@@ -1,3 +1,54 @@
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
+import { Button } from './ui/button';
+import { Progress } from './ui/progress';
+import { Badge } from './ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
+import { Alert, AlertDescription } from './ui/alert';
+import { Textarea } from './ui/textarea';
+import { Input } from './ui/input';
+import { Label } from './ui/label';
+import { Separator } from './ui/separator';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { 
+  Play, 
+  Pause, 
+  Square, 
+  Download, 
+  Upload, 
+  Settings, 
+  BarChart3, 
+  Zap, 
+  Clock, 
+  CheckCircle,
+  AlertTriangle,
+  RefreshCw,
+  FileText,
+  Brain,
+  Target
+} from 'lucide-react';
+
+interface TrainingConfig {
+  model_name: string;
+  learning_rate: number;
+  batch_size: number;
+  epochs: number;
+  max_length: number;
+  warmup_steps: number;
+  weight_decay: number;
+  save_steps: number;
+  eval_steps: number;
+  logging_steps: number;
+}
+
+interface TrainingMetrics {
+  epoch: number;
+  loss: number;
+  learning_rate: number;
+  eval_loss?: number;
+  perplexity?: number;
+  timestamp: number;
+}
 import { useState, useEffect } from "react";
 import { Play, Square, TrendingUp, Clock, Zap, Info, AlertCircle, CheckCircle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -120,7 +171,7 @@ export default function Training({
     }
 
     const jobName = `${selectedTemplateData.name} - ${new Date().toLocaleString()}`;
-    
+
     startTrainingMutation.mutate({
       templateId: selectedTemplate,
       datasetId: selectedDataset,
@@ -172,7 +223,7 @@ export default function Training({
           Start the training process with one click. Our platform automatically optimizes hyperparameters 
           and provides real-time monitoring of your model's progress.
         </p>
-        
+
         {/* Educational Callout */}
         <div className="bg-green-50 border border-green-200 rounded-lg p-4">
           <div className="flex items-start space-x-3">
@@ -194,7 +245,7 @@ export default function Training({
         <div className="mb-6">
           <PerformanceMonitor compact />
         </div>
-        
+
         {/* Adaptive Education */}
         {selectedTemplate && (
           <AdaptiveEducation
@@ -204,7 +255,7 @@ export default function Training({
             className="mb-6"
           />
         )}
-        
+
         {/* Training Configuration */}
         <div className="mb-8">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Training Configuration</h3>
@@ -230,7 +281,7 @@ export default function Training({
                 <p className="text-sm text-gray-500">No template selected</p>
               )}
             </div>
-            
+
             <div className="p-4 bg-gray-50 rounded-lg">
               <h4 className="font-medium text-gray-900 mb-2">Selected Dataset</h4>
               {selectedDatasetData ? (
@@ -266,7 +317,7 @@ export default function Training({
               </span>
             </div>
           </div>
-          
+
           <div className="flex items-center space-x-4">
             {!trainingStarted || currentJobData?.status === 'completed' || currentJobData?.status === 'failed' ? (
               <Button
@@ -287,7 +338,7 @@ export default function Training({
                 {stopTrainingMutation.isPending ? "Stopping..." : "Stop Training"}
               </Button>
             )}
-            
+
             {currentJobData && (
               <Badge className={getStatusColor(currentJobData.status)}>
                 {currentJobData.status.charAt(0).toUpperCase() + currentJobData.status.slice(1)}
@@ -305,7 +356,7 @@ export default function Training({
                 Training Progress: {currentJobData.name}
               </h3>
             </div>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
               <div className="text-center">
                 <div className="text-2xl font-bold text-gray-900">
@@ -335,23 +386,23 @@ export default function Training({
                 <div className="text-sm text-gray-600">ETA</div>
               </div>
             </div>
-            
+
             <Progress value={currentJobData.progress} className="mb-4" />
-            
+
             {currentJobData.status === 'running' && (
               <div className="flex items-center space-x-2 text-sm text-gray-600">
                 <TrendingUp className="w-4 h-4" />
                 <span>Training in progress... Loss is decreasing steadily.</span>
               </div>
             )}
-            
+
             {currentJobData.status === 'completed' && (
               <div className="flex items-center space-x-2 text-sm text-success">
                 <CheckCircle className="w-4 h-4" />
                 <span>Training completed successfully! Model is ready for testing.</span>
               </div>
             )}
-            
+
             {currentJobData.status === 'failed' && (
               <div className="flex items-center space-x-2 text-sm text-destructive">
                 <AlertCircle className="w-4 h-4" />
@@ -396,7 +447,7 @@ export default function Training({
           <Button variant="outline" onClick={onBack}>
             Back to Data Upload
           </Button>
-          
+
           <Button 
             onClick={onNext}
             disabled={!currentJobData || currentJobData.status !== 'completed'}
