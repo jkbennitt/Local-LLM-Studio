@@ -39,60 +39,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/training/stream', (req, res) => {
     const clientId = Math.random().toString(36).substr(2, 9);
 
-    // More aggressive headers for connection stability
-
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Headers', 'Cache-Control');
-
-    res.setHeader('X-Accel-Buffering', 'no'); // Disable proxy buffering
-
-    sseClients.set(clientId, res);
-    console.log(`SSE client connected: ${clientId}`);
-
-    // Send initial connection message
+    // Set SSE headers with better error handling
     try {
+      res.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Cache-Control',
+        'X-Accel-Buffering': 'no'
+      });
+
+      sseClients.set(clientId, res);
+      console.log(`SSE client connected: ${clientId}`);
+
+      // Send initial connection message
       res.write(`data: ${JSON.stringify({
         type: 'connection',
         status: 'connected',
         clientId: clientId,
         timestamp: Date.now()
       })}\n\n`);
-    } catch (error) {
-      console.error(`Failed to send initial message to ${clientId}:`, error);
-      sseClients.delete(clientId);
-      return;
-    }
 
-    // Keep connection alive with more frequent pings
-    const keepAlive = setInterval(() => {
-      if (!res.destroyed && sseClients.has(clientId)) {
+      // Keep connection alive with heartbeat
+      const keepAlive = setInterval(() => {
+        if (res.destroyed || res.writableEnded) {
+          clearInterval(keepAlive);
+          sseClients.delete(clientId);
+          return;
+        }
+
         try {
-          res.write(`data: ${JSON.stringify({ type: 'ping', timestamp: Date.now() })}\n\n`);
+          res.write(`data: ${JSON.stringify({ type: 'heartbeat', timestamp: Date.now() })}\n\n`);
         } catch (error) {
-          console.error(`Ping failed for ${clientId}:`, error);
+          console.error(`Heartbeat failed for ${clientId}:`, error);
           clearInterval(keepAlive);
           sseClients.delete(clientId);
         }
-      } else {
+      }, 30000); // 30 second heartbeat
+
+      // Handle client disconnect
+      req.on('close', () => {
+        console.log(`SSE client disconnected: ${clientId}`);
         clearInterval(keepAlive);
         sseClients.delete(clientId);
+      });
+
+      req.on('error', (error) => {
+        console.error(`SSE client error for ${clientId}:`, error);
+        clearInterval(keepAlive);
+        sseClients.delete(clientId);
+      });
+
+      res.on('error', (error) => {
+        console.error(`SSE response error for ${clientId}:`, error);
+        clearInterval(keepAlive);
+        sseClients.delete(clientId);
+      });
+
+    } catch (error) {
+      console.error(`Failed to establish SSE connection for ${clientId}:`, error);
+      if (!res.headersSent) {
+        res.status(500).json({ error: 'Failed to establish SSE connection' });
       }
-    }, 15000); // Reduced to 15 seconds for better stability
-
-    req.on('close', () => {
-      console.log(`SSE client disconnected: ${clientId}`);
-      clearInterval(keepAlive);
-      sseClients.delete(clientId);
-    });
-
-    req.on('error', (error) => {
-      console.error(`SSE client error for ${clientId}:`, error);
-      clearInterval(keepAlive);
-      sseClients.delete(clientId);
-    });
+    }
   });
 
   // API Routes

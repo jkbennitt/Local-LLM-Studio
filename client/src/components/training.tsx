@@ -89,6 +89,27 @@ export default function Training({
     }
   });
 
+  // Fallback polling when SSE is not connected
+  useEffect(() => {
+    if (!isConnected && currentJob) {
+      const pollInterval = setInterval(async () => {
+        try {
+          const updatedJobs = await queryClient.fetchQuery({
+            queryKey: ['/api/training/jobs'],
+          });
+          const updatedJob = updatedJobs.find((job: TrainingJob) => job.id === currentJob);
+          if (updatedJob) {
+            setCurrentJobData(updatedJob);
+          }
+        } catch (error) {
+          console.error('Polling failed:', error);
+        }
+      }, 3000); // Poll every 3 seconds when disconnected
+
+      return () => clearInterval(pollInterval);
+    }
+  }, [isConnected, currentJob, queryClient]);
+
   // Get templates and datasets for display
   const { data: templates } = useQuery({
     queryKey: ['/api/templates'],
@@ -302,9 +323,9 @@ export default function Training({
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-900">Training Controls</h3>
             <div className="flex items-center space-x-2">
-              <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-success' : 'bg-gray-400'}`} />
+              <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-yellow-500'}`} />
               <span className="text-sm text-gray-600">
-                {isConnected ? 'Connected' : 'Disconnected'}
+                {isConnected ? 'Live Updates' : 'Polling Mode'}
               </span>
             </div>
           </div>
