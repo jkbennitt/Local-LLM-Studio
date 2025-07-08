@@ -15,16 +15,8 @@ import {
   type TrainedModel,
   type InsertTrainedModel
 } from "@shared/schema";
-import { Database } from 'sqlite3';
 import { join } from 'path';
 import { existsSync, mkdirSync } from 'fs';
-
-const dbPath = join(process.cwd(), 'ml_training.db');
-const db = new Database(dbPath);
-
-interface DatabaseRow {
-  [key: string]: any;
-}
 
 export interface IStorage {
   // Users
@@ -138,7 +130,127 @@ this.restoreTrainingDataFromFilesystem();
       createdAt: new Date()
     });
 
-    this.currentTemplateId = 4;
+    // Email Assistant Template
+    this.modelTemplates.set(4, {
+      id: 4,
+      name: "Email Assistant",
+      description: "Generate professional emails, business correspondence, and formal communications with proper tone and structure.",
+      modelType: "distilbert",
+      useCase: "email_assistant",
+      config: {
+        model_name: "distilbert-base-uncased",
+        learning_rate: 2e-5,
+        batch_size: 12,
+        max_epochs: 3,
+        temperature: 0.4,
+        max_length: 512,
+        expected_accuracy: "88-94%"
+      },
+      isActive: true,
+      createdAt: new Date()
+    });
+
+    // Language Translator Template
+    this.modelTemplates.set(5, {
+      id: 5,
+      name: "Language Translator",
+      description: "Translate text between languages with context awareness and cultural nuances for accurate communication.",
+      modelType: "tinybert",
+      useCase: "language_translator",
+      config: {
+        model_name: "prajjwal1/bert-tiny",
+        learning_rate: 3e-5,
+        batch_size: 20,
+        max_epochs: 4,
+        temperature: 0.3,
+        max_length: 256,
+        expected_accuracy: "85-90%"
+      },
+      isActive: true,
+      createdAt: new Date()
+    });
+
+    // Content Summarizer Template
+    this.modelTemplates.set(6, {
+      id: 6,
+      name: "Content Summarizer",
+      description: "Create concise summaries of articles, documents, and reports while preserving key information and context.",
+      modelType: "distilbert",
+      useCase: "content_summarizer",
+      config: {
+        model_name: "distilbert-base-uncased",
+        learning_rate: 2e-5,
+        batch_size: 10,
+        max_epochs: 3,
+        temperature: 0.5,
+        max_length: 384,
+        expected_accuracy: "86-92%"
+      },
+      isActive: true,
+      createdAt: new Date()
+    });
+
+    // Product Description Writer Template
+    this.modelTemplates.set(7, {
+      id: 7,
+      name: "Product Description Writer",
+      description: "Generate compelling product descriptions, marketing copy, and e-commerce listings that drive sales.",
+      modelType: "gpt2-small",
+      useCase: "product_description",
+      config: {
+        model_name: "gpt2",
+        learning_rate: 3e-5,
+        batch_size: 8,
+        max_epochs: 4,
+        temperature: 0.8,
+        max_length: 400,
+        expected_accuracy: "High"
+      },
+      isActive: true,
+      createdAt: new Date()
+    });
+
+    // Educational Tutor Template
+    this.modelTemplates.set(8, {
+      id: 8,
+      name: "Educational Tutor",
+      description: "Create educational content, lessons, explanations, and tutorials tailored to different learning levels.",
+      modelType: "gpt2-small",
+      useCase: "educational_tutor",
+      config: {
+        model_name: "gpt2",
+        learning_rate: 4e-5,
+        batch_size: 6,
+        max_epochs: 4,
+        temperature: 0.6,
+        max_length: 512,
+        expected_accuracy: "High"
+      },
+      isActive: true,
+      createdAt: new Date()
+    });
+
+    // Legal Document Assistant Template
+    this.modelTemplates.set(9, {
+      id: 9,
+      name: "Legal Document Assistant",
+      description: "Analyze legal documents, contracts, and provide precise legal language assistance with high accuracy.",
+      modelType: "distilbert",
+      useCase: "legal_assistant",
+      config: {
+        model_name: "distilbert-base-uncased",
+        learning_rate: 1e-5,
+        batch_size: 8,
+        max_epochs: 5,
+        temperature: 0.2,
+        max_length: 768,
+        expected_accuracy: "95-98%"
+      },
+      isActive: true,
+      createdAt: new Date()
+    });
+
+    this.currentTemplateId = 10;
   }
 
   private restoreUploadsFromFilesystem() {
@@ -163,15 +275,20 @@ this.restoreTrainingDataFromFilesystem();
           let originalName = `restored_${file}`;
           let fileType = '.txt';
 
-          // Try to detect file type by reading content
+          // Try to detect file type by reading content and extension
           try {
-            const content = fs.readFileSync(filePath, 'utf8');
-            if (content.includes('|') && content.split('\n').length > 5) {
-              fileType = '.txt';
-              originalName = `training_data_${Date.now()}.txt`;
-            } else if (content.includes(',')) {
-              fileType = '.csv';
-              originalName = `training_data_${Date.now()}.csv`;
+            if (file.toLowerCase().endsWith('.pdf')) {
+              fileType = '.pdf';
+              originalName = `training_data_${Date.now()}.pdf`;
+            } else {
+              const content = fs.readFileSync(filePath, 'utf8');
+              if (content.includes('|') && content.split('\n').length > 5) {
+                fileType = '.txt';
+                originalName = `training_data_${Date.now()}.txt`;
+              } else if (content.includes(',')) {
+                fileType = '.csv';
+                originalName = `training_data_${Date.now()}.csv`;
+              }
             }
           } catch (e) {
             fileType = '.txt';
@@ -181,11 +298,16 @@ this.restoreTrainingDataFromFilesystem();
           // Count samples
           let sampleCount = 0;
           try {
-            const content = fs.readFileSync(filePath, 'utf8');
-            if (fileType === '.txt') {
-              sampleCount = content.split('\n').filter(line => line.trim() && line.includes('|')).length;
-            } else if (fileType === '.csv') {
-              sampleCount = Math.max(0, content.split('\n').length - 1);
+            if (fileType === '.pdf') {
+              // For PDF files, estimate based on file size (rough estimate)
+              sampleCount = Math.max(1, Math.floor(stats.size / 1024 / 2)); // Rough estimate: 1 sample per 2KB
+            } else {
+              const content = fs.readFileSync(filePath, 'utf8');
+              if (fileType === '.txt') {
+                sampleCount = content.split('\n').filter(line => line.trim() && line.includes('|')).length;
+              } else if (fileType === '.csv') {
+                sampleCount = Math.max(0, content.split('\n').length - 1);
+              }
             }
           } catch (e) {
             sampleCount = 1; // Default to 1 if can't read

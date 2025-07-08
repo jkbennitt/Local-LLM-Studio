@@ -86,7 +86,7 @@ export class ProductionDeployment {
       },
       storage: {
         maxFileSize: 50 * 1024 * 1024, // 50MB
-        allowedFormats: ['.csv', '.json', '.txt'],
+        allowedFormats: ['.csv', '.json', '.txt', '.pdf'],
         datasetPath: process.env.DATASET_PATH || './uploads',
         modelPath: process.env.MODEL_PATH || './models'
       },

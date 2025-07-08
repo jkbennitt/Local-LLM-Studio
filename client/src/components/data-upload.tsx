@@ -58,7 +58,7 @@ export default function DataUpload({
       // Provide helpful suggestions based on error type
       if (errorMessage.includes('file type') || errorMessage.includes('Invalid file')) {
         errorTitle = 'Invalid file type';
-        errorMessage += ' Please ensure you upload CSV, JSON, or TXT files only.';
+        errorMessage += ' Please ensure you upload CSV, JSON, TXT, or PDF files only.';
       } else if (errorMessage.includes('too large') || errorMessage.includes('size')) {
         errorTitle = 'File too large';
         errorMessage += ' Please use files smaller than 50MB.';
@@ -188,6 +188,8 @@ export default function DataUpload({
         return File;
       case 'txt':
         return FileText;
+      case 'pdf':
+        return FileText;
       default:
         return File;
     }
@@ -253,7 +255,7 @@ export default function DataUpload({
               {isUploading ? "Uploading..." : "Drop your files here"}
             </h3>
             <p className="text-gray-600 mb-4">
-              Supports CSV, JSON, and TXT files up to 50MB
+              Supports CSV, JSON, TXT, and PDF files up to 50MB
             </p>
             
             {isUploading && (
@@ -271,7 +273,7 @@ export default function DataUpload({
             <div className="relative">
               <input
                 type="file"
-                accept=".csv,.json,.txt"
+                accept=".csv,.json,.txt,.pdf"
                 onChange={handleFileInputChange}
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                 disabled={isUploading}

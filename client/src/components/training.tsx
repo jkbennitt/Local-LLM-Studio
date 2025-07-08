@@ -49,15 +49,6 @@ interface TrainingMetrics {
   perplexity?: number;
   timestamp: number;
 }
-import { useState, useEffect } from "react";
-import { Play, Square, TrendingUp, Clock, Zap, Info, AlertCircle, CheckCircle } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { useToast } from "@/hooks/use-toast";
-import { useWebSocket } from "@/hooks/use-websocket";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { startTraining, stopTraining } from "@/lib/api";
 import { TrainingJob, WebSocketMessage } from "@/types";
 import AdaptiveEducation from "./adaptive-education";

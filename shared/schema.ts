@@ -48,7 +48,7 @@ export const datasets = pgTable("datasets", {
   filename: text("filename").notNull(),
   filePath: text("file_path").notNull(),
   fileSize: integer("file_size").notNull(),
-  fileType: text("file_type").notNull(), // 'csv', 'json', 'txt'
+  fileType: text("file_type").notNull(), // 'csv', 'json', 'txt', 'pdf'
   sampleCount: integer("sample_count"),
   preprocessed: boolean("preprocessed").default(false),
   createdAt: timestamp("created_at").defaultNow(),

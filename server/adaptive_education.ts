@@ -4,12 +4,7 @@
  */
 
 import { Request, Response } from 'express';
-import { Database } from 'sqlite3';
 import { join } from 'path';
-
-// Database setup
-const dbPath = join(process.cwd(), 'ml_training.db');
-const db = new Database(dbPath);
 
 interface LearningPath {
   id: string;

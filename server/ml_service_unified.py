@@ -93,6 +93,56 @@ class UnifiedMLService:
             'service': 'unified_ml_service'
         }
 
+    def extract_pdf_text(self, pdf_path: str) -> str:
+        """Extract text from PDF file using multiple methods"""
+        try:
+            # Try PyPDF2 first
+            try:
+                import PyPDF2
+                with open(pdf_path, 'rb') as file:
+                    reader = PyPDF2.PdfReader(file)
+                    text = ""
+                    for page in reader.pages:
+                        text += page.extract_text() + "\n"
+                    if text.strip():
+                        return text
+            except ImportError:
+                pass
+            
+            # Try pdfplumber as fallback
+            try:
+                import pdfplumber
+                with pdfplumber.open(pdf_path) as pdf:
+                    text = ""
+                    for page in pdf.pages:
+                        page_text = page.extract_text()
+                        if page_text:
+                            text += page_text + "\n"
+                    if text.strip():
+                        return text
+            except ImportError:
+                pass
+            
+            # Try pymupdf as another fallback
+            try:
+                import fitz  # PyMuPDF
+                doc = fitz.open(pdf_path)
+                text = ""
+                for page in doc:
+                    text += page.get_text() + "\n"
+                doc.close()
+                if text.strip():
+                    return text
+            except ImportError:
+                pass
+            
+            # If no PDF library is available, return a basic message
+            return "PDF processing libraries not available. Please install PyPDF2, pdfplumber, or PyMuPDF."
+            
+        except Exception as e:
+            print(f"Error extracting PDF text: {str(e)}")
+            return ""
+
     def validate_dataset(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Validate dataset format and quality"""
         try:
@@ -115,6 +165,17 @@ class UnifiedMLService:
                 with open(dataset_path, 'r') as f:
                     lines = f.readlines()
                 sample_count = len([l for l in lines if l.strip()])
+            elif dataset_path.endswith('.pdf'):
+                try:
+                    # Try to extract text from PDF
+                    extracted_text = self.extract_pdf_text(dataset_path)
+                    if extracted_text:
+                        # Count paragraphs/sections as samples
+                        sample_count = len([p for p in extracted_text.split('\n\n') if p.strip()])
+                    else:
+                        return {"error": "Could not extract text from PDF file"}
+                except Exception as e:
+                    return {"error": f"PDF processing failed: {str(e)}"}
             else:
                 return {"error": "Unsupported file format"}
 

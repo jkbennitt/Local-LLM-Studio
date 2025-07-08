@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { MessageSquare, PenTool, Code, Check, HelpCircle, Info } from "lucide-react";
+import { MessageSquare, PenTool, Code, Check, HelpCircle, Info, Mail, Languages, FileType, ShoppingCart, GraduationCap, Scale } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -28,6 +28,18 @@ export default function TemplateSelection({
         return PenTool;
       case 'code_assistant':
         return Code;
+      case 'email_assistant':
+        return Mail;
+      case 'language_translator':
+        return Languages;
+      case 'content_summarizer':
+        return FileType;
+      case 'product_description':
+        return ShoppingCart;
+      case 'educational_tutor':
+        return GraduationCap;
+      case 'legal_assistant':
+        return Scale;
       default:
         return MessageSquare;
     }
@@ -41,6 +53,18 @@ export default function TemplateSelection({
         return 'bg-purple-500 text-white';
       case 'code_assistant':
         return 'bg-green-500 text-white';
+      case 'email_assistant':
+        return 'bg-blue-500 text-white';
+      case 'language_translator':
+        return 'bg-cyan-500 text-white';
+      case 'content_summarizer':
+        return 'bg-yellow-500 text-white';
+      case 'product_description':
+        return 'bg-pink-500 text-white';
+      case 'educational_tutor':
+        return 'bg-indigo-500 text-white';
+      case 'legal_assistant':
+        return 'bg-gray-700 text-white';
       default:
         return 'bg-primary text-white';
     }
@@ -188,7 +212,56 @@ export default function TemplateSelection({
                       <li>• Code comments</li>
                     </>
                   )}
+                  {selectedTemplateData.useCase === 'email_assistant' && (
+                    <>
+                      <li>• Professional email examples</li>
+                      <li>• Business correspondence</li>
+                      <li>• Email templates and responses</li>
+                      <li>• Communication samples (CSV/TXT/PDF)</li>
+                    </>
+                  )}
+                  {selectedTemplateData.useCase === 'language_translator' && (
+                    <>
+                      <li>• Parallel text pairs (source-target)</li>
+                      <li>• Translation examples</li>
+                      <li>• Bilingual documents</li>
+                      <li>• Language pair samples (CSV/TXT/PDF)</li>
+                    </>
+                  )}
+                  {selectedTemplateData.useCase === 'content_summarizer' && (
+                    <>
+                      <li>• Article-summary pairs</li>
+                      <li>• Document abstracts</li>
+                      <li>• Research papers with summaries</li>
+                      <li>• Long-form content (TXT/PDF)</li>
+                    </>
+                  )}
+                  {selectedTemplateData.useCase === 'product_description' && (
+                    <>
+                      <li>• Product specifications</li>
+                      <li>• Marketing copy examples</li>
+                      <li>• E-commerce listings</li>
+                      <li>• Feature-benefit descriptions (CSV/TXT/PDF)</li>
+                    </>
+                  )}
+                  {selectedTemplateData.useCase === 'educational_tutor' && (
+                    <>
+                      <li>• Educational content samples</li>
+                      <li>• Lesson plans and explanations</li>
+                      <li>• Q&A pairs for learning</li>
+                      <li>• Teaching materials (TXT/PDF)</li>
+                    </>
+                  )}
+                  {selectedTemplateData.useCase === 'legal_assistant' && (
+                    <>
+                      <li>• Legal document examples</li>
+                      <li>• Contract templates</li>
+                      <li>• Legal precedents and cases</li>
+                      <li>• Regulatory documents (PDF/TXT)</li>
+                    </>
+                  )}
                   <li>• Minimum 100 examples recommended</li>
+                  <li>• PDF files supported for all templates</li>
                 </ul>
               </div>
             </div>

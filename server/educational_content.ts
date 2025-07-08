@@ -246,6 +246,282 @@ def fibonacci(n: int, memo: dict = {}) -> int:
           'Include debugging techniques',
           'Build IDE integrations'
         ]
+      },
+      
+      email_assistant: {
+        title: 'Email Assistant Training',
+        description: 'Train a model to generate professional emails and business correspondence',
+        difficulty: 'intermediate' as const,
+        estimatedTime: '15-25 minutes',
+        prerequisites: ['Basic understanding of business communication'],
+        learningObjectives: [
+          'Generate professional email responses',
+          'Maintain appropriate tone and formality',
+          'Structure business correspondence effectively',
+          'Handle various email types and contexts'
+        ],
+        content: [
+          {
+            type: 'explanation',
+            content: 'Email assistants help maintain professional communication by learning from examples of business correspondence, email templates, and response patterns.'
+          },
+          {
+            type: 'example',
+            content: 'Training data should include sender-recipient context, subject lines, email bodies, and appropriate responses for different business scenarios.'
+          },
+          {
+            type: 'tip',
+            content: 'Include examples of different formality levels: formal business emails, internal team communications, client responses, and follow-up messages.'
+          }
+        ],
+        practicalTips: [
+          'Include email metadata (subject, sender, context)',
+          'Train on various business scenarios',
+          'Maintain consistent professional tone',
+          'Include templates for common situations'
+        ],
+        commonMistakes: [
+          'Mixing formal and informal language',
+          'Missing context for email threads',
+          'Inconsistent signature formats',
+          'Poor subject line generation'
+        ],
+        nextSteps: [
+          'Test with various business scenarios',
+          'Validate tone appropriateness',
+          'Check formatting consistency',
+          'Test response relevance'
+        ]
+      },
+
+      language_translator: {
+        title: 'Language Translator Training',
+        description: 'Train a model to translate text between languages with cultural context',
+        difficulty: 'advanced' as const,
+        estimatedTime: '25-35 minutes',
+        prerequisites: ['Understanding of target languages', 'Parallel text data'],
+        learningObjectives: [
+          'Translate text between language pairs',
+          'Preserve meaning and context',
+          'Handle idiomatic expressions',
+          'Maintain cultural appropriateness'
+        ],
+        content: [
+          {
+            type: 'explanation',
+            content: 'Translation models require parallel text data with source and target language pairs, focusing on maintaining meaning while adapting to cultural context.'
+          },
+          {
+            type: 'example',
+            content: 'Training data should include sentence pairs, phrase translations, and document sections with professional translation quality.'
+          },
+          {
+            type: 'warning',
+            content: 'Ensure translation quality by using professionally translated content rather than machine-generated translations for training.'
+          }
+        ],
+        practicalTips: [
+          'Use high-quality parallel text pairs',
+          'Include domain-specific terminology',
+          'Validate translation accuracy',
+          'Test with various text types'
+        ],
+        commonMistakes: [
+          'Using poor quality translations',
+          'Missing cultural context',
+          'Inconsistent terminology',
+          'Literal word-for-word translation'
+        ],
+        nextSteps: [
+          'Test translation accuracy',
+          'Validate cultural appropriateness',
+          'Check terminology consistency',
+          'Test with domain-specific content'
+        ]
+      },
+
+      content_summarizer: {
+        title: 'Content Summarizer Training',
+        description: 'Train a model to create concise summaries of long-form content',
+        difficulty: 'intermediate' as const,
+        estimatedTime: '20-30 minutes',
+        prerequisites: ['Document-summary pairs', 'Understanding of key information extraction'],
+        learningObjectives: [
+          'Extract key information from documents',
+          'Create concise, accurate summaries',
+          'Maintain important context',
+          'Handle various content types'
+        ],
+        content: [
+          {
+            type: 'explanation',
+            content: 'Summarization models learn to identify and extract the most important information from lengthy documents while preserving essential context and meaning.'
+          },
+          {
+            type: 'example',
+            content: 'Training data should include original documents paired with high-quality human-written summaries that capture the main points effectively.'
+          },
+          {
+            type: 'tip',
+            content: 'Include various types of content: news articles, research papers, reports, and different summary styles (abstract, executive summary, bullet points).'
+          }
+        ],
+        practicalTips: [
+          'Use high-quality document-summary pairs',
+          'Include various content domains',
+          'Test summary comprehensiveness',
+          'Validate key information retention'
+        ],
+        commonMistakes: [
+          'Summaries too long or too short',
+          'Missing critical information',
+          'Including minor details',
+          'Inconsistent summary style'
+        ],
+        nextSteps: [
+          'Test with various document types',
+          'Validate information accuracy',
+          'Check summary completeness',
+          'Test length appropriateness'
+        ]
+      },
+
+      product_description: {
+        title: 'Product Description Writer Training',
+        description: 'Train a model to create compelling product descriptions and marketing copy',
+        difficulty: 'intermediate' as const,
+        estimatedTime: '18-28 minutes',
+        prerequisites: ['Product specifications', 'Marketing copy examples'],
+        learningObjectives: [
+          'Generate engaging product descriptions',
+          'Highlight key features and benefits',
+          'Maintain brand voice consistency',
+          'Create compelling marketing copy'
+        ],
+        content: [
+          {
+            type: 'explanation',
+            content: 'Product description models learn to transform technical specifications into persuasive marketing copy that highlights benefits and appeals to target customers.'
+          },
+          {
+            type: 'example',
+            content: 'Training data should include product specifications paired with well-written descriptions that emphasize benefits, features, and customer value proposition.'
+          },
+          {
+            type: 'tip',
+            content: 'Include examples from different product categories and various description styles: feature-focused, benefit-driven, storytelling, and technical specifications.'
+          }
+        ],
+        practicalTips: [
+          'Include diverse product categories',
+          'Focus on benefit-driven language',
+          'Maintain consistent brand voice',
+          'Test with different product types'
+        ],
+        commonMistakes: [
+          'Too technical or too generic',
+          'Missing key benefits',
+          'Inconsistent tone or style',
+          'Poor feature prioritization'
+        ],
+        nextSteps: [
+          'Test with various products',
+          'Validate benefit emphasis',
+          'Check brand voice consistency',
+          'Test conversion effectiveness'
+        ]
+      },
+
+      educational_tutor: {
+        title: 'Educational Tutor Training',
+        description: 'Train a model to create educational content and explanations',
+        difficulty: 'intermediate' as const,
+        estimatedTime: '22-32 minutes',
+        prerequisites: ['Educational content samples', 'Learning objectives'],
+        learningObjectives: [
+          'Create clear educational explanations',
+          'Adapt content to learning levels',
+          'Provide helpful examples',
+          'Generate practice questions'
+        ],
+        content: [
+          {
+            type: 'explanation',
+            content: 'Educational tutor models learn to explain complex concepts clearly, provide relevant examples, and adapt explanations to different learning levels and styles.'
+          },
+          {
+            type: 'example',
+            content: 'Training data should include lesson plans, explanations, Q&A pairs, and educational materials that demonstrate clear teaching methodology.'
+          },
+          {
+            type: 'tip',
+            content: 'Include content for different learning levels (beginner, intermediate, advanced) and various explanation styles (step-by-step, analogies, examples).'
+          }
+        ],
+        practicalTips: [
+          'Include content for various skill levels',
+          'Use clear, progressive explanations',
+          'Provide relevant examples',
+          'Test comprehension effectiveness'
+        ],
+        commonMistakes: [
+          'Too complex or too simple',
+          'Missing practical examples',
+          'Inconsistent difficulty progression',
+          'Poor concept connections'
+        ],
+        nextSteps: [
+          'Test with different learning levels',
+          'Validate explanation clarity',
+          'Check example relevance',
+          'Test knowledge retention'
+        ]
+      },
+
+      legal_assistant: {
+        title: 'Legal Document Assistant Training',
+        description: 'Train a model to analyze and assist with legal documents',
+        difficulty: 'advanced' as const,
+        estimatedTime: '30-40 minutes',
+        prerequisites: ['Legal document examples', 'Understanding of legal terminology'],
+        learningObjectives: [
+          'Analyze legal document structure',
+          'Identify key legal clauses',
+          'Maintain legal accuracy',
+          'Generate appropriate legal language'
+        ],
+        content: [
+          {
+            type: 'explanation',
+            content: 'Legal assistant models require high-precision training on professional legal documents to understand legal language, structure, and critical clauses.'
+          },
+          {
+            type: 'warning',
+            content: 'Legal content requires exceptional accuracy. Always use professionally reviewed legal documents for training and validate output with legal experts.'
+          },
+          {
+            type: 'example',
+            content: 'Training data should include contracts, legal precedents, case law, and regulatory documents with proper legal language and structure.'
+          }
+        ],
+        practicalTips: [
+          'Use only professional legal documents',
+          'Validate legal accuracy thoroughly',
+          'Include various legal domains',
+          'Test with legal experts'
+        ],
+        commonMistakes: [
+          'Using non-professional legal content',
+          'Inconsistent legal terminology',
+          'Missing critical legal elements',
+          'Inappropriate legal language'
+        ],
+        nextSteps: [
+          'Validate with legal professionals',
+          'Test accuracy thoroughly',
+          'Check legal terminology consistency',
+          'Verify clause completeness'
+        ]
       }
     };
     
